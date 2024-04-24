@@ -31,7 +31,6 @@ def create_training_row(char_info, prev_char, currspan, currline, currblock):
     char_width = char_info["bbox"][2] - char_info["bbox"][0]
     training_row = {"is_space": char.isspace() or char in SPACES,
                     "is_newline": char in LINE_BREAKS, "is_printable": char.isprintable(), "is_hyphen": char == HYPHEN,
-                    #"is_tab": char in TABS,
                     "char_x1": char_info["bbox"][0], "char_y1": char_info["bbox"][1],
                     "char_x2": char_info["bbox"][2], "char_y2": char_info["bbox"][3],
                     "prev_char_x1": prev_char["bbox"][0], "prev_char_y1": prev_char["bbox"][1],
@@ -40,7 +39,7 @@ def create_training_row(char_info, prev_char, currspan, currline, currblock):
                     "y_gap": char_info["bbox"][1] - prev_char["bbox"][3],
                     "x_center_gap": char_center_x - prev_char_center_x,
                     "y_center_gap": char_center_y - prev_char_center_y,
-                    "page_rotation": char_info["page_rotation"], "span_len": len(currspan),
+                    "span_len": len(currspan),
                     "line_len": len(currline), "block_len": len(currblock), "height": char_height,
                     "width": char_width,
                     "width_ratio": char_width / replace_zero(prev_char["bbox"][2] - prev_char["bbox"][0]),
@@ -59,11 +58,11 @@ def create_training_row(char_info, prev_char, currspan, currline, currblock):
 def infer_single_page(text_chars):
     prev_char = None
 
-    blocks = []
+    blocks = defaultdict(list)
     block = defaultdict(list)
     line = defaultdict(list)
     span = defaultdict(list)
-    for i, char_info in enumerate(text_chars):
+    for i, char_info in enumerate(text_chars["chars"]):
         if prev_char:
             training_row = create_training_row(char_info, prev_char, span, line, block)
             training_row = [v for k, v in sorted(training_row.items(), key=lambda x: x[0])]
@@ -82,7 +81,7 @@ def infer_single_page(text_chars):
             else:
                 line["spans"].append(span)
                 block["lines"].append(line)
-                blocks.append(block)
+                blocks["blocks"].append(block)
                 block = defaultdict(list)
                 line = defaultdict(list)
                 span = defaultdict(list)
@@ -98,7 +97,11 @@ def infer_single_page(text_chars):
     if len(line) > 0:
         block["lines"].append(line)
     if len(block) > 0:
-        blocks.append(block)
+        blocks["blocks"].append(block)
+
+    blocks["page"] = text_chars["page"]
+    blocks["rotation"] = text_chars["rotation"]
+    blocks["bbox"] = text_chars["bbox"]
     return blocks
 
 

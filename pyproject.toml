@@ -11,11 +11,7 @@ packages = [
     {include = "pdftext"}
 ]
 include = [
-    "convert.py",
-    "convert_single.py",
-    "chunk_convert.sh",
-    "benchmark.py",
-    "chunk_convert.py",
+    "extract_text.py",
     "models/dt.joblib"
 ]
 
@@ -27,8 +23,12 @@ pydantic = "^2.7.1"
 pydantic-settings = "^2.2.1"
 
 [tool.poetry.group.dev.dependencies]
-jupyterlab = "^4.1.6"
+pymupdf = "^1.24.2"
+datasets = "^2.19.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+pdftext = "extract_text:main"

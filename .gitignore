@@ -1,6 +1,8 @@
 # Project-specific
 temp.txt
 temp.json
+notebooks
+results
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

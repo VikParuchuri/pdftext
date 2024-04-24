@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 import unicodedata
 
 from pdftext.pdf.utils import SPACES, LINE_BREAKS, TABS, WHITESPACE_CHARS
@@ -43,12 +43,12 @@ def sort_blocks(blocks: List, tolerance=1.25) -> List:
     return sorted_page_blocks
 
 
-def merge_text(blocks: List, sort=False) -> str:
+def merge_text(page: Dict, sort=False) -> str:
     text = ""
     if sort:
-        blocks = sort_blocks(blocks)
+        page["blocks"] = sort_blocks(page["blocks"])
 
-    for block in blocks:
+    for block in page["blocks"]:
         block_text = ""
         for line in block["lines"]:
             line_text = ""
