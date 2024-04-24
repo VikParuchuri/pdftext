@@ -1,4 +1,7 @@
+import operator
 from collections import defaultdict
+from itertools import chain
+
 from pdftext.pdf.utils import SPACES, TABS, LINE_BREAKS, HYPHEN
 from pdftext.utils import replace_zero
 
@@ -65,7 +68,7 @@ def infer_single_page(text_chars):
     for i, char_info in enumerate(text_chars["chars"]):
         if prev_char:
             training_row = create_training_row(char_info, prev_char, span, line, block)
-            training_row = [v for k, v in sorted(training_row.items(), key=lambda x: x[0])]
+            training_row = [v for k, v in sorted(training_row.items(), key=operator.itemgetter(0))]
 
             prediction = yield training_row
             if prediction == 0:
@@ -75,11 +78,15 @@ def infer_single_page(text_chars):
                 span = defaultdict(list)
             elif prediction == 2:
                 line["spans"].append(span)
+                line["chars"] = list(chain.from_iterable([s["chars"] for s in line["spans"]]))
+                del line["spans"]
                 block["lines"].append(line)
                 line = defaultdict(list)
                 span = defaultdict(list)
             else:
                 line["spans"].append(span)
+                line["chars"] = list(chain.from_iterable([s["chars"] for s in line["spans"]]))
+                del line["spans"]
                 block["lines"].append(line)
                 blocks["blocks"].append(block)
                 block = defaultdict(list)
@@ -92,11 +99,12 @@ def infer_single_page(text_chars):
         block = update_current(block, char_info)
 
         prev_char = char_info
-    if len(span) > 0:
-        line["spans"].append(span)
-    if len(line) > 0:
+    if len(span["chars"]) > 0:
+        line["chars"] = list(chain.from_iterable([s["chars"] for s in line["spans"]]))
+        del line["spans"]
+    if len(line["chars"]) > 0:
         block["lines"].append(line)
-    if len(block) > 0:
+    if len(block["lines"]) > 0:
         blocks["blocks"].append(block)
 
     blocks["page"] = text_chars["page"]
@@ -108,7 +116,7 @@ def infer_single_page(text_chars):
 def inference(text_chars, model):
     # Create generators and get first training row from each
     generators = [infer_single_page(text_page) for text_page in text_chars]
-    next_prediction = {idx: next(gen) for idx, gen in enumerate(generators)}
+    next_prediction = {}
 
     page_blocks = {}
     while len(page_blocks) < len(generators):
@@ -118,8 +126,11 @@ def inference(text_chars, model):
                 continue
 
             try:
-                training_row = page_generator.send(next_prediction[page_idx])
-                del next_prediction[page_idx]
+                if page_idx not in next_prediction:
+                    training_row = next(page_generator)
+                else:
+                    training_row = page_generator.send(next_prediction[page_idx])
+                    del next_prediction[page_idx]
                 training_data[page_idx] = training_row
             except StopIteration as e:
                 blocks = e.value
@@ -128,14 +139,14 @@ def inference(text_chars, model):
         if len(page_blocks) == len(generators):
             break
 
-        training_list = sorted(training_data.items(), key=lambda x: x[0])
+        training_list = sorted(training_data.items(), key=operator.itemgetter(0))
         training_rows = [tl[1] for tl in training_list]
         training_idxs = [tl[0] for tl in training_list]
 
         predictions = model.predict(training_rows)
         for pred, page_idx in zip(predictions, training_idxs):
             next_prediction[page_idx] = pred
-    page_blocks = sorted(page_blocks.items(), key=lambda x: x[0])
+    page_blocks = sorted(page_blocks.items(), key=operator.itemgetter(0))
     page_blocks = [p[1] for p in page_blocks]
     assert len(page_blocks) == len(text_chars)
     return page_blocks

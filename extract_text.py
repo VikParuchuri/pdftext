@@ -23,7 +23,7 @@ def main():
     if args.out_path is None:
         print(text)
     else:
-        with open(args.out_path, "w") as f:
+        with open(args.out_path, "w+") as f:
             f.write(text)
 
 

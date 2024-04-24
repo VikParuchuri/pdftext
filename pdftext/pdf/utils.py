@@ -53,24 +53,44 @@ def get_fontname(textpage, char_index):
     return decoded, flag_buffer.value
 
 
-def page_to_device(page, x, y, normalize=True):
+def page_to_device(page, x, y, page_width, page_height):
     device_x = ctypes.c_int()
     device_y = ctypes.c_int()
     device_x_ptr = ctypes.pointer(device_x)
     device_y_ptr = ctypes.pointer(device_y)
     rotation = pdfium_c.FPDFPage_GetRotation(page)
-    width = math.ceil(page.get_width())
-    height = math.ceil(page.get_height())
+    width = math.ceil(page_width)
+    height = math.ceil(page_height)
     pdfium_c.FPDF_PageToDevice(page, 0, 0, width, height, rotation, x, y, device_x_ptr, device_y_ptr)
     x = device_x.value
     y = device_y.value
-    if normalize:
-        x = x / width # Normalise to 0-1
-        y = y / height # Normalise to 0-1
     return x, y
 
 
-def page_bbox_to_device_bbox(page, bbox, normalize=True):
+def page_bbox_to_device_bbox(pdf_bbox, page_width, page_height, normalize=False):
+    left, bottom, right, top = pdf_bbox
+
+    device_top = page_height - bottom
+    device_bottom = page_height - top
+    if normalize:
+        device_bbox = [left / page_width, device_top / page_height, right / page_width, device_bottom / page_height]
+    else:
+        device_bbox = [left, device_top, right, device_bottom]
+    return device_bbox
+
+
+def pdfium_page_bbox_to_device_bbox2(page, bbox, page_width, page_height, normalize=False):
     dev_bbox = page_to_device(page, *bbox[:2], normalize=normalize) + page_to_device(page, *bbox[2:], normalize=normalize)
     dev_bbox = (dev_bbox[0], dev_bbox[3], dev_bbox[2], dev_bbox[1])  # Convert to ltrb
+    return dev_bbox
+
+
+def pdfium_page_bbox_to_device_bbox(page, bbox, page_width, page_height, normalize=False):
+    bbox_width = bbox[2] - bbox[0]
+    bbox_height = bbox[3] - bbox[1]
+    left_bottom = page_to_device(page, *bbox[:2], page_width, page_height)
+
+    dev_bbox = (left_bottom[0], left_bottom[1] - bbox_height, left_bottom[0] + bbox_width, left_bottom[1])   # Convert to ltrb
+    if normalize:
+        dev_bbox = [dev_bbox[0] / page_width, dev_bbox[1] / page_height, dev_bbox[2] / page_width, dev_bbox[3] / page_height]
     return dev_bbox

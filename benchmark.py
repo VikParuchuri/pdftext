@@ -7,6 +7,7 @@ import json
 
 import fitz as pymupdf
 import datasets
+import pdfplumber
 
 from pdftext.extraction import dictionary_output
 from pdftext.settings import settings
@@ -19,6 +20,16 @@ def pymupdf_inference(pdf_path):
         page = doc[i]
         text = page.get_text("dict")
         pages.append(text)
+    return pages
+
+
+def pdfplumber_inference(pdf_path):
+    with pdfplumber.open(pdf_path) as pdf:
+        pages = []
+        for i in range(len(pdf.pages)):
+            page = pdf.pages[i]
+            text = page.extract_text()
+            pages.append(text)
     return pages
 
 
@@ -35,6 +46,7 @@ def main():
 
     mu_times = []
     pdftext_times = []
+    pdfplumber_times = []
     for i in range(len(dataset)):
         row = dataset[i]
         pdf = row["pdf"]
@@ -52,12 +64,18 @@ def main():
             pdftext_pages = dictionary_output(pdf_path)
             pdftext_times.append(time.time() - start)
 
+            start = time.time()
+            pdfplumber_pages = pdfplumber_inference(pdf_path)
+            pdfplumber_times.append(time.time() - start)
+
     print(f"MuPDF avg time: {mean(mu_times):.2f}")
+    print(f"pdfplumber avg time: {mean(pdfplumber_times):.2f}")
     print(f"pdftext avg time: {mean(pdftext_times):.2f}")
 
     results = {
         "mu_times": mu_times,
-        "pdftext_times": pdftext_times
+        "pdftext_times": pdftext_times,
+        "pdfplumber_times": pdfplumber_times
     }
 
     result_path = args.result_path

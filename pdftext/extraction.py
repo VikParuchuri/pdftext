@@ -25,26 +25,19 @@ def plain_text_output(pdf_path, sort=False):
 
 def dictionary_output(pdf_path, sort=False):
     pages = _get_pages(pdf_path)
-    merged_pages = []
     for page in pages:
-        merged_page = {
-            "page_idx": page["page"],
-            "rotation": page["rotation"],
-            "bbox": page["bbox"],
-            "blocks": []
-        }
         for block in page["blocks"]:
-            merged_lines = []
+            bad_keys = [key for key in block.keys() if key not in ["lines", "bbox"]]
+            for key in bad_keys:
+                del block[key]
             for line in block["lines"]:
-                chars = [s["chars"] for s in line["spans"]]
-                chars = chain.from_iterable(chars)
-                line["chars"] = chars
-                del line["spans"]
                 line["bbox"] = unnormalize_bbox(line["bbox"], page["bbox"])
-            block["lines"] = merged_lines
+                bad_keys = [key for key in line.keys() if key not in ["chars", "bbox"]]
+                for key in bad_keys:
+                    del line[key]
+                for char in line["chars"]:
+                    char["bbox"] = unnormalize_bbox(char["bbox"], page["bbox"])
             block["bbox"] = unnormalize_bbox(block["bbox"], page["bbox"])
-            merged_page["blocks"].append(block)
         if sort:
-            merged_page["blocks"] = sort_blocks(merged_page["blocks"])
-        merged_pages.append(merged_page)
-    return merged_pages
+            page["blocks"] = sort_blocks(page["blocks"])
+    return pages

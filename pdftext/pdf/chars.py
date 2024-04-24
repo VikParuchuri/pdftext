@@ -1,7 +1,7 @@
 import math
 from collections import defaultdict
 
-from pdftext.pdf.utils import get_fontname, page_to_device, page_bbox_to_device_bbox
+from pdftext.pdf.utils import get_fontname, page_to_device, page_bbox_to_device_bbox, pdfium_page_bbox_to_device_bbox
 import pypdfium2 as pdfium
 import pypdfium2.raw as pdfium_c
 
@@ -17,7 +17,10 @@ def get_pdfium_chars(pdf_path):
         text_chars["page"] = page_idx
         text_chars["rotation"] = page.get_rotation()
         bbox = page.get_bbox()
-        text_chars["bbox"] = page_bbox_to_device_bbox(page, bbox, normalize=False)
+        page_width = math.ceil(bbox[2] - bbox[0])
+        page_height = math.ceil(abs(bbox[1] - bbox[3]))
+        #text_chars["bbox"] = page_bbox_to_device_bbox(bbox, page_width, page_height)
+        text_chars["bbox"] = pdfium_page_bbox_to_device_bbox(page, bbox, page_width, page_height)
 
         for i in range(text_page.count_chars()):
             char = pdfium_c.FPDFText_GetUnicode(text_page, i)
@@ -28,7 +31,8 @@ def get_pdfium_chars(pdf_path):
             rotation = pdfium_c.FPDFText_GetCharAngle(text_page, i)
             rotation = rotation * 180 / math.pi # convert from radians to degrees
             coords = text_page.get_charbox(i, loose=True)
-            device_coords = page_bbox_to_device_bbox(page, coords)
+            #device_coords = page_bbox_to_device_bbox(coords, page_width, page_height, normalize=True)
+            device_coords = pdfium_page_bbox_to_device_bbox(page, coords, page_width, page_height, normalize=True)
             char_info = {
                 "font": {
                     "size": fontsize,

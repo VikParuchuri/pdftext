@@ -25,6 +25,8 @@ pydantic-settings = "^2.2.1"
 [tool.poetry.group.dev.dependencies]
 pymupdf = "^1.24.2"
 datasets = "^2.19.0"
+pdfplumber = "^0.11.0"
+pillow = "^10.3.0"
 
 [build-system]
 requires = ["poetry-core"]
