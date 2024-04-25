@@ -49,6 +49,26 @@ def create_training_row(char_info, prev_char, currspan, currblock, avg_x_gap, av
     return training_row
 
 
+def update_span(line, span):
+    line["spans"].append(span)
+    span = {"chars": []}
+    return span
+
+
+def update_line(block, line):
+    line["chars"] = list(chain.from_iterable(s["chars"] for s in line["spans"]))
+    del line["spans"]
+    block["lines"].append(line)
+    line = {"spans": []}
+    return line
+
+
+def update_block(blocks, block):
+    blocks["blocks"].append(block)
+    block = {"lines": []}
+    return block
+
+
 def infer_single_page(text_chars):
     prev_char = None
 
@@ -65,24 +85,14 @@ def infer_single_page(text_chars):
             if prediction == 0:
                 pass
             elif prediction == 1:
-                line["spans"].append(span)
-                span = {"chars": []}
+                span = update_span(line, span)
             elif prediction == 2:
-                line["spans"].append(span)
-                line["chars"] = list(chain.from_iterable(s["chars"] for s in line["spans"]))
-                del line["spans"]
-                block["lines"].append(line)
-                line = {"spans": []}
-                span = {"chars": []}
+                span = update_span(line, span)
+                line = update_line(block, line)
             else:
-                line["spans"].append(span)
-                line["chars"] = list(chain.from_iterable(s["chars"] for s in line["spans"]))
-                del line["spans"]
-                block["lines"].append(line)
-                blocks["blocks"].append(block)
-                block = {"lines": []}
-                line = {"spans": []}
-                span = {"chars": []}
+                span = update_span(line, span)
+                line = update_line(block, line)
+                block = update_block(blocks, block)
 
         span["chars"].append(char_info)
         span = update_current(span, char_info)
@@ -90,15 +100,11 @@ def infer_single_page(text_chars):
 
         prev_char = char_info
     if len(span["chars"]) > 0:
-        line["chars"] = list(chain.from_iterable(s["chars"] for s in line["spans"]))
-        del line["spans"]
-    if "spans" in line and len(line["spans"]) > 0:
-        line["chars"] = list(chain.from_iterable(s["chars"] for s in line["spans"]))
-        del line["spans"]
-    if "chars" in line and len(line["chars"]) > 0:
-        block["lines"].append(line)
+        update_span(line, span)
+    if len(line["spans"]) > 0:
+        update_line(block, line)
     if len(block["lines"]) > 0:
-        blocks["blocks"].append(block)
+        update_block(blocks, block)
 
     blocks["page"] = text_chars["page"]
     blocks["rotation"] = text_chars["rotation"]

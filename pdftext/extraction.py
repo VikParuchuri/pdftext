@@ -2,7 +2,7 @@ from pdftext.inference import inference
 from pdftext.model import get_model
 from pdftext.pdf.chars import get_pdfium_chars
 from pdftext.pdf.utils import unnormalize_bbox
-from pdftext.postprocessing import merge_text, sort_blocks
+from pdftext.postprocessing import merge_text, sort_blocks, postprocess_text
 
 
 def _get_pages(pdf_path):
@@ -34,6 +34,7 @@ def dictionary_output(pdf_path, sort=False):
                     del line[key]
                 for char in line["chars"]:
                     char["bbox"] = unnormalize_bbox(char["bbox"], page["bbox"])
+                    char["char"] = postprocess_text(char["char"])
                     if line_box is None:
                         line_box = char["bbox"]
                     else:

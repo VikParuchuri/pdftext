@@ -4,7 +4,7 @@ import unicodedata
 from pdftext.pdf.utils import SPACES, LINE_BREAKS, TABS, WHITESPACE_CHARS
 
 
-def postprocess(text: str) -> str:
+def postprocess_text(text: str) -> str:
     text = replace_special_chars(text)
     text = replace_control_chars(text)
     return text
@@ -54,7 +54,7 @@ def merge_text(page: Dict, sort=False) -> str:
             line_text = ""
             for char in line["chars"]:
                 line_text += char["char"]
-            line_text = postprocess(line_text)
+            line_text = postprocess_text(line_text)
             if line_text.endswith("\n"):
                 line_text = line_text[:-1].strip() + " "
 

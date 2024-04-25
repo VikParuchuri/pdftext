@@ -4,7 +4,7 @@ import math
 
 LINE_BREAKS = ["\n", "\u000D", "\u000A", "\u000C"]
 TABS = ["\t", "\u0009"]
-SPACES = [" ", "\ufffe", "\uFEFF"]
+SPACES = [" ", "\ufffe", "\uFEFF", "\xa0"]
 HYPHEN = "-"
 WHITESPACE_CHARS = ["\n", "\r", "\f", "\t", " "]
 
