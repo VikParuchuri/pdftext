@@ -2,6 +2,8 @@ import pypdfium2.raw as pdfium_c
 import ctypes
 import math
 
+from pdftext.settings import settings
+
 LINE_BREAKS = ["\n", "\u000D", "\u000A", "\u000C"]
 TABS = ["\t", "\u0009"]
 SPACES = [" ", "\ufffe", "\uFEFF", "\xa0"]
@@ -36,8 +38,7 @@ def unnormalize_bbox(bbox, page_bound):
 
 
 def get_fontname(textpage, char_index):
-    n_bytes = 1024
-    # Initialise the output buffer - this function can work without null terminator, so skip it
+    n_bytes = settings.FONT_BUFFER_SIZE
     buffer = ctypes.create_string_buffer(n_bytes)
     # Re-interpret the type from char to unsigned short as required by the function
     buffer_ptr = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_ushort))
@@ -73,6 +74,15 @@ def pdfium_page_bbox_to_device_bbox(page, bbox, page_width, page_height, normali
     left_bottom = page_to_device(page, *bbox[:2], page_width, page_height)
 
     dev_bbox = [left_bottom[0], left_bottom[1] - bbox_height, left_bottom[0] + bbox_width, left_bottom[1]]   # Convert to ltrb
+    if normalize:
+        dev_bbox = [dev_bbox[0] / page_width, dev_bbox[1] / page_height, dev_bbox[2] / page_width, dev_bbox[3] / page_height]
+    return dev_bbox
+
+
+def page_bbox_to_device_bbox(page, bbox, page_width, page_height, normalize=False):
+    left, bottom, right, top = bbox
+
+    dev_bbox = [left, page_height-top, right, page_height-bottom]
     if normalize:
         dev_bbox = [dev_bbox[0] / page_width, dev_bbox[1] / page_height, dev_bbox[2] / page_width, dev_bbox[3] / page_height]
     return dev_bbox

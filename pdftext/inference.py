@@ -19,12 +19,10 @@ def update_current(current, new_char):
     return current
 
 
-def create_training_row(char_info, prev_char, currspan, currblock, avg_x_gap, avg_y_gap):
+def create_training_row(char_info, prev_char, currblock, avg_x_gap, avg_y_gap):
     char = char_info["char"]
     char_center_x = (char_info["bbox"][2] + char_info["bbox"][0]) / 2
     char_center_y = (char_info["bbox"][3] + char_info["bbox"][1]) / 2
-    prev_char_center_x = (prev_char["bbox"][2] + prev_char["bbox"][0]) / 2
-    prev_char_center_y = (prev_char["bbox"][3] + prev_char["bbox"][1]) / 2
     x_gap = char_info["bbox"][0] - prev_char["bbox"][2]
     y_gap = char_info["bbox"][1] - prev_char["bbox"][3]
 
@@ -36,12 +34,8 @@ def create_training_row(char_info, prev_char, currspan, currblock, avg_x_gap, av
         "y_outer_gap": char_info["bbox"][3] - prev_char["bbox"][1],
         "x_gap_ratio": x_gap / avg_x_gap if avg_x_gap > 0 else 0,
         "y_gap_ratio": y_gap / avg_y_gap if avg_y_gap > 0 else 0,
-        "x_center_gap": char_center_x - prev_char_center_x,
-        "y_center_gap": char_center_y - prev_char_center_y,
         "block_x_center_gap": char_center_x - currblock["center_x"],
         "block_y_center_gap": char_center_y - currblock["center_y"],
-        "span_x_center_gap": char_center_x - currspan["center_x"],
-        "span_y_center_gap": char_center_y - currspan["center_y"],
         "block_x_gap": char_info["bbox"][0] - currblock["bbox"][2],
         "block_y_gap": char_info["bbox"][1] - currblock["bbox"][3]
     }
@@ -78,7 +72,7 @@ def infer_single_page(text_chars):
     span = {"chars": []}
     for i, char_info in enumerate(text_chars["chars"]):
         if prev_char:
-            training_row = create_training_row(char_info, prev_char, span, block, text_chars["avg_x_gap"], text_chars["avg_y_gap"])
+            training_row = create_training_row(char_info, prev_char, block, text_chars["avg_x_gap"], text_chars["avg_y_gap"])
             training_row = [v for _, v in sorted(training_row.items())]
 
             prediction = yield training_row
@@ -95,7 +89,6 @@ def infer_single_page(text_chars):
                 block = update_block(blocks, block)
 
         span["chars"].append(char_info)
-        span = update_current(span, char_info)
         block = update_current(block, char_info)
 
         prev_char = char_info

@@ -1,13 +1,25 @@
 import decimal
 import math
-from collections import defaultdict
+from typing import Dict
 
-from pdftext.pdf.utils import get_fontname, pdfium_page_bbox_to_device_bbox
 import pypdfium2 as pdfium
 import pypdfium2.raw as pdfium_c
 
+from pdftext.pdf.utils import get_fontname, pdfium_page_bbox_to_device_bbox, page_bbox_to_device_bbox
+from pdftext.settings import settings
 
-def get_pdfium_chars(pdf_path):
+
+def update_previous_fonts(text_chars: Dict, i: int, fontname: str, fontflags: int, prev_fontname: str, text_page, fontname_sample_freq: int):
+    min_update = max(0, i - fontname_sample_freq + 1) # Minimum index to update
+    regather_font_info = fontname != prev_fontname
+    for j in range(min_update, i): # Goes from min_update to i - 1
+        if regather_font_info:
+            fontname, fontflags = get_fontname(text_page, j)
+        text_chars["chars"][j]["font"]["name"] = fontname
+        text_chars["chars"][j]["font"]["flags"] = fontflags
+
+
+def get_pdfium_chars(pdf_path, fontname_sample_freq=settings.FONTNAME_SAMPLE_FREQ):
     pdf = pdfium.PdfDocument(pdf_path)
     blocks = []
 
@@ -27,6 +39,8 @@ def get_pdfium_chars(pdf_path):
         }
 
         prev_bbox = None
+        fontname = None
+        fontflags = None
         x_gaps = decimal.Decimal(0)
         y_gaps = decimal.Decimal(0)
         total_chars = text_page.count_chars()
@@ -35,11 +49,15 @@ def get_pdfium_chars(pdf_path):
             char = chr(char)
             fontsize = pdfium_c.FPDFText_GetFontSize(text_page, i)
             fontweight = pdfium_c.FPDFText_GetFontWeight(text_page, i)
-            fontname, fontflags = get_fontname(text_page, i)
+            if fontname is None or i % fontname_sample_freq == 0:
+                prev_fontname = fontname
+                fontname, fontflags = get_fontname(text_page, i)
+                update_previous_fonts(text_chars, i, fontname, fontflags, prev_fontname, text_page, fontname_sample_freq)
+
             rotation = pdfium_c.FPDFText_GetCharAngle(text_page, i)
             rotation = rotation * 180 / math.pi # convert from radians to degrees
             coords = text_page.get_charbox(i, loose=True)
-            device_coords = pdfium_page_bbox_to_device_bbox(page, coords, page_width, page_height, normalize=True)
+            device_coords = page_bbox_to_device_bbox(page, coords, page_width, page_height, normalize=True)
 
             char_info = {
                 "font": {

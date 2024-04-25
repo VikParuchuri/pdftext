@@ -75,4 +75,6 @@ from pdftext.extraction import dictionary_output
 text = dictionary_output(PDF_PATH)
 ```
 
+If you want more customization, check out the `pdftext.extraction._get_pages` function for a starting point to dig deeper.  pdftext is a pretty thin wrapper around [pypdfium2](https://pypdfium2.readthedocs.io/en/stable/), so you might want to look at the documentation for that as well.
+
 
