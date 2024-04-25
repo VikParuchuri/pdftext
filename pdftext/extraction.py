@@ -1,6 +1,3 @@
-import copy
-from itertools import chain
-
 from pdftext.inference import inference
 from pdftext.model import get_model
 from pdftext.pdf.chars import get_pdfium_chars
@@ -31,12 +28,22 @@ def dictionary_output(pdf_path, sort=False):
             for key in bad_keys:
                 del block[key]
             for line in block["lines"]:
-                line["bbox"] = unnormalize_bbox(line["bbox"], page["bbox"])
+                line_box = None
                 bad_keys = [key for key in line.keys() if key not in ["chars", "bbox"]]
                 for key in bad_keys:
                     del line[key]
                 for char in line["chars"]:
                     char["bbox"] = unnormalize_bbox(char["bbox"], page["bbox"])
+                    if line_box is None:
+                        line_box = char["bbox"]
+                    else:
+                        line_box = [
+                            min(line_box[0], char["bbox"][0]),
+                            min(line_box[1], char["bbox"][1]),
+                            max(line_box[2], char["bbox"][2]),
+                            max(line_box[3], char["bbox"][3]),
+                        ]
+                line["bbox"] = line_box
             block["bbox"] = unnormalize_bbox(block["bbox"], page["bbox"])
         if sort:
             page["blocks"] = sort_blocks(page["blocks"])

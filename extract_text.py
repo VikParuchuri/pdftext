@@ -17,7 +17,7 @@ def main():
     if args.output_type == "plain_text":
         text = plain_text_output(args.pdf_path, sort=args.sort)
     elif args.output_type == "json":
-        text = dictionary_output(args.pdf_path)
+        text = dictionary_output(args.pdf_path, sort=args.sort)
         text = json.dumps(text)
 
     if args.out_path is None:

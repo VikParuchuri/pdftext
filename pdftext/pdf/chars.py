@@ -1,7 +1,8 @@
+import decimal
 import math
 from collections import defaultdict
 
-from pdftext.pdf.utils import get_fontname, page_to_device, page_bbox_to_device_bbox, pdfium_page_bbox_to_device_bbox
+from pdftext.pdf.utils import get_fontname, pdfium_page_bbox_to_device_bbox
 import pypdfium2 as pdfium
 import pypdfium2.raw as pdfium_c
 
@@ -9,20 +10,27 @@ import pypdfium2.raw as pdfium_c
 def get_pdfium_chars(pdf_path):
     pdf = pdfium.PdfDocument(pdf_path)
     blocks = []
+
     for page_idx in range(len(pdf)):
         page = pdf.get_page(page_idx)
         text_page = page.get_textpage()
 
-        text_chars = defaultdict(list)
-        text_chars["page"] = page_idx
-        text_chars["rotation"] = page.get_rotation()
         bbox = page.get_bbox()
         page_width = math.ceil(bbox[2] - bbox[0])
         page_height = math.ceil(abs(bbox[1] - bbox[3]))
-        #text_chars["bbox"] = page_bbox_to_device_bbox(bbox, page_width, page_height)
-        text_chars["bbox"] = pdfium_page_bbox_to_device_bbox(page, bbox, page_width, page_height)
 
-        for i in range(text_page.count_chars()):
+        text_chars = {
+            "chars": [],
+            "page": page_idx,
+            "rotation": page.get_rotation(),
+            "bbox": pdfium_page_bbox_to_device_bbox(page, bbox, page_width, page_height)
+        }
+
+        prev_bbox = None
+        x_gaps = decimal.Decimal(0)
+        y_gaps = decimal.Decimal(0)
+        total_chars = text_page.count_chars()
+        for i in range(total_chars):
             char = pdfium_c.FPDFText_GetUnicode(text_page, i)
             char = chr(char)
             fontsize = pdfium_c.FPDFText_GetFontSize(text_page, i)
@@ -31,8 +39,8 @@ def get_pdfium_chars(pdf_path):
             rotation = pdfium_c.FPDFText_GetCharAngle(text_page, i)
             rotation = rotation * 180 / math.pi # convert from radians to degrees
             coords = text_page.get_charbox(i, loose=True)
-            #device_coords = page_bbox_to_device_bbox(coords, page_width, page_height, normalize=True)
             device_coords = pdfium_page_bbox_to_device_bbox(page, coords, page_width, page_height, normalize=True)
+
             char_info = {
                 "font": {
                     "size": fontsize,
@@ -42,10 +50,18 @@ def get_pdfium_chars(pdf_path):
                 },
                 "rotation": rotation,
                 "char": char,
-                "origin": coords,
                 "bbox": device_coords,
                 "char_idx": i
             }
             text_chars["chars"].append(char_info)
+
+            if prev_bbox:
+                x_gaps += decimal.Decimal(device_coords[0] - prev_bbox[2])
+                y_gaps += decimal.Decimal(device_coords[1] - prev_bbox[3])
+            prev_bbox = device_coords
+
+        text_chars["avg_x_gap"] = float(x_gaps / total_chars) if total_chars > 0 else 0
+        text_chars["avg_y_gap"] = float(y_gaps / total_chars) if total_chars > 0 else 0
+        text_chars["total_chars"] = total_chars
         blocks.append(text_chars)
     return blocks

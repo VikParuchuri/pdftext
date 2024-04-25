@@ -1,21 +1,18 @@
 # PDFText
 
-Extracts text from pdfs in a similar way to [PymuPDF](https://github.com/pymupdf/PyMuPDF), but without the AGPL license.  Built on [pypdfium2](https://github.com/pypdfium2-team/pypdfium2).
+Text extraction like PyMuPDF, but without the AGPL license.  PDFText extracts plain text or structured blocks and lines, similar to [PymuPDF](https://github.com/pymupdf/PyMuPDF).  It's built on [pypdfium2](https://github.com/pypdfium2-team/pypdfium2), so it's [fast, accurate](https://github.com/py-pdf/benchmarks), and Apache licensed.
 
 # Installation
 
-You'll need python 3.9+.
-
-Install with:
+You'll need python 3.9+ first.  Then run:
 
 ```shell
 pip install pdftext
 ```
 
-# Usage
+# CLI Usage
 
 - Inspect the settings in `pdftext/settings.py`.  You can override any settings with environment variables.
-
 
 ## Plain text
 
@@ -53,7 +50,6 @@ The output will be a json list, with each item in the list corresponding to a si
       - `char` - the actual character, encoded in utf-8
       - `rotation` - how much the character is rotated, in degrees
       - `bbox` - the character bbox, in [x1, y1, x2, y2] format
-      - `origin` - the original pdf coordinate origin
       - `char_idx` - the index of the character on the page (from 0 to number of characters, in original pdf order)
       - `font` this is font info straight from the pdf, see [this pdfium code](https://pdfium.googlesource.com/pdfium/+/refs/heads/main/public/fpdf_text.h)
         - `size` - the size of the font used for the character
@@ -61,4 +57,22 @@ The output will be a json list, with each item in the list corresponding to a si
         - `name` - font name, may be None
         - `flags` - font flags, in the format of the `PDF spec 1.7 Section 5.7.1 Font Descriptor Flags`
 
-- 
+# Programmatic usage
+
+Extract plain text:
+
+```python
+from pdftext.extraction import plain_text_output
+
+text = plain_text_output(PDF_PATH, sort=False)
+```
+
+Extract structured blocks and lines:
+
+```python
+from pdftext.extraction import dictionary_output
+
+text = dictionary_output(PDF_PATH)
+```
+
+

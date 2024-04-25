@@ -1,108 +1,101 @@
-import operator
-from collections import defaultdict
 from itertools import chain
 
-from pdftext.pdf.utils import SPACES, TABS, LINE_BREAKS, HYPHEN
-from pdftext.utils import replace_zero
+from pdftext.pdf.utils import LINE_BREAKS
 
 
 def update_current(current, new_char):
     bbox = new_char["bbox"]
     if "bbox" not in current:
-        current["bbox"] = list(bbox)
+        current_bbox = bbox
+        current["bbox"] = current_bbox
     else:
-        current["bbox"][0] = min(bbox[0], current["bbox"][0])
-        current["bbox"][1] = min(bbox[1], current["bbox"][1])
-        current["bbox"][2] = max(bbox[2], current["bbox"][2])
-        current["bbox"][3] = max(bbox[3], current["bbox"][3])
-    current["height"] = current["bbox"][2] - current["bbox"][0]
-    current["center_x"] = (current["bbox"][0] + current["bbox"][2]) / 2
-    current["center_y"] = (current["bbox"][1] + current["bbox"][3]) / 2
-    if "length" not in current:
-        current["length"] = 0
-    current["length"] += 1
+        current_bbox = current["bbox"]
+        current_bbox[0] = min(bbox[0], current_bbox[0])
+        current_bbox[1] = min(bbox[1], current_bbox[1])
+        current_bbox[2] = max(bbox[2], current_bbox[2])
+        current_bbox[3] = max(bbox[3], current_bbox[3])
+    current["center_x"] = (current_bbox[0] + current_bbox[2]) / 2
+    current["center_y"] = (current_bbox[1] + current_bbox[3]) / 2
     return current
 
 
-def create_training_row(char_info, prev_char, currspan, currline, currblock):
+def create_training_row(char_info, prev_char, currspan, currblock, avg_x_gap, avg_y_gap):
     char = char_info["char"]
     char_center_x = (char_info["bbox"][2] + char_info["bbox"][0]) / 2
     char_center_y = (char_info["bbox"][3] + char_info["bbox"][1]) / 2
     prev_char_center_x = (prev_char["bbox"][2] + prev_char["bbox"][0]) / 2
     prev_char_center_y = (prev_char["bbox"][3] + prev_char["bbox"][1]) / 2
-    char_height = char_info["bbox"][3] - char_info["bbox"][1]
-    char_width = char_info["bbox"][2] - char_info["bbox"][0]
-    training_row = {"is_space": char.isspace() or char in SPACES,
-                    "is_newline": char in LINE_BREAKS, "is_printable": char.isprintable(), "is_hyphen": char == HYPHEN,
-                    "char_x1": char_info["bbox"][0], "char_y1": char_info["bbox"][1],
-                    "char_x2": char_info["bbox"][2], "char_y2": char_info["bbox"][3],
-                    "prev_char_x1": prev_char["bbox"][0], "prev_char_y1": prev_char["bbox"][1],
-                    "prev_char_x2": prev_char["bbox"][2], "prev_char_y2": prev_char["bbox"][3],
-                    "x_gap": char_info["bbox"][0] - prev_char["bbox"][2],
-                    "y_gap": char_info["bbox"][1] - prev_char["bbox"][3],
-                    "x_center_gap": char_center_x - prev_char_center_x,
-                    "y_center_gap": char_center_y - prev_char_center_y,
-                    "span_len": len(currspan),
-                    "line_len": len(currline), "block_len": len(currblock), "height": char_height,
-                    "width": char_width,
-                    "width_ratio": char_width / replace_zero(prev_char["bbox"][2] - prev_char["bbox"][0]),
-                    "height_ratio": char_width / replace_zero(prev_char["bbox"][3] - prev_char["bbox"][1]),
-                    "block_x_center_gap": char_center_x - currblock["center_x"],
-                    "block_y_center_gap": char_center_y - currblock["center_y"],
-                    "line_x_center_gap": char_center_x - currline["center_x"],
-                    "line_y_center_gap": char_center_y - currblock["center_y"],
-                    "span_x_center_gap": char_center_x - currspan["center_x"],
-                    "span_y_center_gap": char_center_y - currspan["center_y"],
-                    "block_x_gap": char_info["bbox"][0] - currblock["bbox"][2],
-                    "block_y_gap": char_info["bbox"][1] - currblock["bbox"][3]}
+    x_gap = char_info["bbox"][0] - prev_char["bbox"][2]
+    y_gap = char_info["bbox"][1] - prev_char["bbox"][3]
+
+    training_row = {
+        "is_newline": char in LINE_BREAKS,
+        "x_gap": x_gap,
+        "y_gap": y_gap,
+        "x_outer_gap": char_info["bbox"][2] - prev_char["bbox"][0],
+        "y_outer_gap": char_info["bbox"][3] - prev_char["bbox"][1],
+        "x_gap_ratio": x_gap / avg_x_gap if avg_x_gap > 0 else 0,
+        "y_gap_ratio": y_gap / avg_y_gap if avg_y_gap > 0 else 0,
+        "x_center_gap": char_center_x - prev_char_center_x,
+        "y_center_gap": char_center_y - prev_char_center_y,
+        "block_x_center_gap": char_center_x - currblock["center_x"],
+        "block_y_center_gap": char_center_y - currblock["center_y"],
+        "span_x_center_gap": char_center_x - currspan["center_x"],
+        "span_y_center_gap": char_center_y - currspan["center_y"],
+        "block_x_gap": char_info["bbox"][0] - currblock["bbox"][2],
+        "block_y_gap": char_info["bbox"][1] - currblock["bbox"][3]
+    }
+
     return training_row
 
 
 def infer_single_page(text_chars):
     prev_char = None
 
-    blocks = defaultdict(list)
-    block = defaultdict(list)
-    line = defaultdict(list)
-    span = defaultdict(list)
+    blocks = {"blocks": []}
+    block = {"lines": []}
+    line = {"spans": []}
+    span = {"chars": []}
     for i, char_info in enumerate(text_chars["chars"]):
         if prev_char:
-            training_row = create_training_row(char_info, prev_char, span, line, block)
-            training_row = [v for k, v in sorted(training_row.items(), key=operator.itemgetter(0))]
+            training_row = create_training_row(char_info, prev_char, span, block, text_chars["avg_x_gap"], text_chars["avg_y_gap"])
+            training_row = [v for _, v in sorted(training_row.items())]
 
             prediction = yield training_row
             if prediction == 0:
                 pass
             elif prediction == 1:
                 line["spans"].append(span)
-                span = defaultdict(list)
+                span = {"chars": []}
             elif prediction == 2:
                 line["spans"].append(span)
-                line["chars"] = list(chain.from_iterable([s["chars"] for s in line["spans"]]))
+                line["chars"] = list(chain.from_iterable(s["chars"] for s in line["spans"]))
                 del line["spans"]
                 block["lines"].append(line)
-                line = defaultdict(list)
-                span = defaultdict(list)
+                line = {"spans": []}
+                span = {"chars": []}
             else:
                 line["spans"].append(span)
-                line["chars"] = list(chain.from_iterable([s["chars"] for s in line["spans"]]))
+                line["chars"] = list(chain.from_iterable(s["chars"] for s in line["spans"]))
                 del line["spans"]
                 block["lines"].append(line)
                 blocks["blocks"].append(block)
-                block = defaultdict(list)
-                line = defaultdict(list)
-                span = defaultdict(list)
+                block = {"lines": []}
+                line = {"spans": []}
+                span = {"chars": []}
 
         span["chars"].append(char_info)
         span = update_current(span, char_info)
-        line = update_current(line, char_info)
         block = update_current(block, char_info)
 
         prev_char = char_info
     if len(span["chars"]) > 0:
-        line["chars"] = list(chain.from_iterable([s["chars"] for s in line["spans"]]))
+        line["chars"] = list(chain.from_iterable(s["chars"] for s in line["spans"]))
         del line["spans"]
-    if len(line["chars"]) > 0:
+    if "spans" in line and len(line["spans"]) > 0:
+        line["chars"] = list(chain.from_iterable(s["chars"] for s in line["spans"]))
+        del line["spans"]
+    if "chars" in line and len(line["chars"]) > 0:
         block["lines"].append(line)
     if len(block["lines"]) > 0:
         blocks["blocks"].append(block)
@@ -139,14 +132,14 @@ def inference(text_chars, model):
         if len(page_blocks) == len(generators):
             break
 
-        training_list = sorted(training_data.items(), key=operator.itemgetter(0))
+        training_list = sorted(training_data.items())
         training_rows = [tl[1] for tl in training_list]
         training_idxs = [tl[0] for tl in training_list]
 
         predictions = model.predict(training_rows)
         for pred, page_idx in zip(predictions, training_idxs):
             next_prediction[page_idx] = pred
-    page_blocks = sorted(page_blocks.items(), key=operator.itemgetter(0))
+    page_blocks = sorted(page_blocks.items())
     page_blocks = [p[1] for p in page_blocks]
     assert len(page_blocks) == len(text_chars)
     return page_blocks
