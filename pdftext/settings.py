@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     MODEL_PATH: str = os.path.join(BASE_PATH, "models", "dt.joblib")
 
     # How many characters to buffer when reading a font name
-    FONT_BUFFER_SIZE: int = 2048
-    FONTNAME_SAMPLE_FREQ: int = 5
+    FONT_BUFFER_SIZE: int = 1024
+    FONTNAME_SAMPLE_FREQ: int = 10
 
     # Benchmark
     RESULTS_FOLDER: str = "results"

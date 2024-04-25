@@ -1,18 +1,21 @@
 import argparse
 import tempfile
 import time
+from collections import defaultdict
+from functools import partial
 from statistics import mean
 import os
 import json
-import re
 
 import fitz as pymupdf
 import datasets
 import pdfplumber
 from rapidfuzz import fuzz
 import tabulate
+from tqdm import tqdm
 
 from pdftext.extraction import paginated_plain_text_output
+from pdftext.model import get_model
 from pdftext.settings import settings
 
 
@@ -38,18 +41,14 @@ def pdfplumber_inference(pdf_path):
         pages = []
         for i in range(len(pdf.pages)):
             page = pdf.pages[i]
-            text = page.extract_text()
+            words = page.extract_words(use_text_flow=True)
+            text = "".join([word["text"] for word in words])
             pages.append(text)
     return pages
 
 
-def flatten_text(page: str):
-    # Replace all text, except newlines, so we can compare block parsing effectively.
-    return re.sub(r'[ \t\r\f\v]+', '', page)
-
-
 def compare_docs(doc1: str, doc2: str):
-    return fuzz.ratio(flatten_text(doc1), flatten_text(doc2))
+    return fuzz.ratio(doc1, doc2)
 
 
 def main():
@@ -63,58 +62,46 @@ def main():
         split = f"train[:{args.max}]"
     dataset = datasets.load_dataset(settings.BENCH_DATASET_NAME, split=split)
 
-    mu_times = []
-    pdftext_times = []
-    pdfplumber_times = []
-    pdftext_alignment = []
-    pdfplumber_alignment = []
-    for i in range(len(dataset)):
+    times = defaultdict(list)
+    alignments = defaultdict(list)
+    times_tools = ["pymupdf", "pdftext", "pdfplumber"]
+    alignment_tools = ["pdftext", "pdfplumber"]
+    model = get_model()
+    for i in tqdm(range(len(dataset)), desc="Benchmarking"):
         row = dataset[i]
         pdf = row["pdf"]
+        tool_pages = {}
         with tempfile.NamedTemporaryFile(suffix=".pdf") as f:
             f.write(pdf)
             f.seek(0)
             pdf_path = f.name
 
-            start = time.time()
-            mu_pages = pymupdf_inference(pdf_path)
-            mu_times.append(time.time() - start)
+            pdftext_inference = partial(paginated_plain_text_output, model=model)
+            inference_funcs = [pymupdf_inference, pdftext_inference, pdfplumber_inference]
+            for tool, inference_func in zip(times_tools, inference_funcs):
+                start = time.time()
+                pages = inference_func(pdf_path)
+                times[tool].append(time.time() - start)
+                tool_pages[tool] = pages
 
-
-            start = time.time()
-            pdftext_pages = paginated_plain_text_output(pdf_path)
-            pdftext_times.append(time.time() - start)
-
-            start = time.time()
-            pdfplumber_pages = pdfplumber_inference(pdf_path)
-            pdfplumber_times.append(time.time() - start)
-
-            alignments = [compare_docs(mu_page, pdftext_page) for mu_page, pdftext_page in zip(mu_pages, pdftext_pages)]
-            pdftext_alignment.append(mean(alignments))
-
-            alignments = [compare_docs(mu_page, pdfplumber_page) for mu_page, pdfplumber_page in zip(mu_pages, pdfplumber_pages)]
-            pdfplumber_alignment.append(mean(alignments))
+            for tool in alignment_tools:
+                alignments[tool].append(
+                    mean([compare_docs(tool_pages["pymupdf"][i], tool_pages[tool][i]) for i in range(len(tool_pages["pymupdf"]))])
+                )
 
     print("Benchmark Scores")
     headers = ["Library", "Time (s per page)", "Alignment Score (% accuracy vs pymupdf)"]
-    table = [
-        ["pymupdf", round(mean(mu_times), 2), "--"],
-        ["pdftext", round(mean(pdftext_times), 2), round(mean(pdftext_alignment), 2)],
-        ["pdfplumber", round(mean(pdfplumber_times), 2), round(mean(pdfplumber_alignment), 2)]
-    ]
+    table_times = [round(mean(times[tool]), 2) for tool in times_tools]
+    table_alignments = [round(mean(alignments[tool]), 2) for tool in alignment_tools]
+    table_alignments.insert(0, "--")
+
+    table = [(tool, time, alignment) for tool, time, alignment in zip(times_tools, table_times, table_alignments)]
     table = tabulate.tabulate(table, tablefmt="pretty", headers=headers)
     print(table)
 
     results = {
-        "times": {
-            "pymupdf": mean(mu_times),
-            "pdftext": mean(pdftext_times),
-            "pdfplumber": mean(pdfplumber_times)
-        },
-        "alignments": {
-            "pdftext": pdftext_alignment,
-            "pdfplumber": pdfplumber_alignment
-        }
+        "times": times,
+        "alignments": alignments
     }
 
     result_path = args.result_path

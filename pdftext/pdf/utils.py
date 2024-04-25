@@ -9,6 +9,15 @@ TABS = ["\t", "\u0009"]
 SPACES = [" ", "\ufffe", "\uFEFF", "\xa0"]
 HYPHEN = "-"
 WHITESPACE_CHARS = ["\n", "\r", "\f", "\t", " "]
+LIGATURES = {
+    "ﬀ": "ff",
+    "ﬃ": "ffi",
+    "ﬄ": "ffl",
+    "ﬁ": "fi",
+    "ﬂ": "fl",
+    "ﬆ": "st",
+    "ﬅ": "st",
+}
 
 
 def char_count(textpage, *rect):
@@ -30,10 +39,10 @@ def normalize_bbox(bbox, page_bound):
 
 def unnormalize_bbox(bbox, page_bound):
     x1, y1, x2, y2 = bbox
-    x1 = x1 * page_bound[2]
-    y1 = y1 * page_bound[3]
-    x2 = x2 * page_bound[2]
-    y2 = y2 * page_bound[3]
+    x1 = round(x1 * page_bound[2], 1)
+    y1 = round(y1 * page_bound[3], 1)
+    x2 = round(x2 * page_bound[2], 1)
+    y2 = round(y2 * page_bound[3], 1)
     return x1, y1, x2, y2
 
 

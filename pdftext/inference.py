@@ -19,7 +19,7 @@ def update_current(current, new_char):
     return current
 
 
-def create_training_row(char_info, prev_char, currblock, avg_x_gap, avg_y_gap):
+def create_training_row(char_info, prev_char, currblock):
     char = char_info["char"]
     char_center_x = (char_info["bbox"][2] + char_info["bbox"][0]) / 2
     char_center_y = (char_info["bbox"][3] + char_info["bbox"][1]) / 2
@@ -42,8 +42,6 @@ def create_training_row(char_info, prev_char, currblock, avg_x_gap, avg_y_gap):
         "font_match": font_match,
         "x_outer_gap": char_info["bbox"][2] - prev_char["bbox"][0],
         "y_outer_gap": char_info["bbox"][3] - prev_char["bbox"][1],
-        "x_gap_ratio": x_gap / avg_x_gap if avg_x_gap > 0 else 0,
-        "y_gap_ratio": y_gap / avg_y_gap if avg_y_gap > 0 else 0,
         "block_x_center_gap": char_center_x - currblock["center_x"],
         "block_y_center_gap": char_center_y - currblock["center_y"],
         "block_x_gap": char_info["bbox"][0] - currblock["bbox"][2],
@@ -82,7 +80,7 @@ def infer_single_page(text_chars):
     span = {"chars": []}
     for i, char_info in enumerate(text_chars["chars"]):
         if prev_char:
-            training_row = create_training_row(char_info, prev_char, block, text_chars["avg_x_gap"], text_chars["avg_y_gap"])
+            training_row = create_training_row(char_info, prev_char, block)
             training_row = [v for _, v in sorted(training_row.items())]
 
             prediction = yield training_row

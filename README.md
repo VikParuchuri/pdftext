@@ -24,6 +24,8 @@ pdftext PDF_PATH --out_path output.txt
 
 ## JSON
 
+This command outputs structured blocks and lines with font and other information.
+
 ```shell
 pdftext PDF_PATH --out_path output.txt --output_type json
 ```
@@ -35,18 +37,18 @@ pdftext PDF_PATH --out_path output.txt --output_type json
 
 The output will be a json list, with each item in the list corresponding to a single page in the input pdf (in order).  Each page will include the following keys:
 
-- `bbox` - the page bbox, in [x1, y1, x2, y2] format
-- `rotation` - how much the page is rotated, in degrees (0, 90, 180, or 270)
+- `bbox` - the page bbox, in `[x1, y1, x2, y2]` format
+- `rotation` - how much the page is rotated, in degrees (`0`, `90`, `180`, or `270`)
 - `page_idx` - the index of the page
 - `blocks` - the blocks that make up the text in the pdf.  Approximately equal to a paragraph.
-  - `bbox` - the block bbox, in [x1, y1, x2, y2] format
+  - `bbox` - the block bbox, in `[x1, y1, x2, y2]` format
   - `lines` - the lines inside the block
-    - `bbox` - the line bbox, in [x1, y1, x2, y2] format
+    - `bbox` - the line bbox, in `[x1, y1, x2, y2]` format
     - `chars` - the individual characters in the line
       - `char` - the actual character, encoded in utf-8
       - `rotation` - how much the character is rotated, in degrees
-      - `bbox` - the character bbox, in [x1, y1, x2, y2] format
-      - `char_idx` - the index of the character on the page (from 0 to number of characters, in original pdf order)
+      - `bbox` - the character bbox, in `[x1, y1, x2, y2]` format
+      - `char_idx` - the index of the character on the page (from `0` to number of characters, in original pdf order)
       - `font` this is font info straight from the pdf, see [this pdfium code](https://pdfium.googlesource.com/pdfium/+/refs/heads/main/public/fpdf_text.h)
         - `size` - the size of the font used for the character
         - `weight` - font weight
@@ -75,7 +77,7 @@ If you want more customization, check out the `pdftext.extraction._get_pages` fu
 
 # Benchmarks
 
-I benchmarked extraction speed and accuracy of [pymupdf](https://pymupdf.readthedocs.io/en/latest/), [pdfplumber](https://github.com/jsvine/pdfplumber), and pdftext.
+I benchmarked extraction speed and accuracy of [pymupdf](https://pymupdf.readthedocs.io/en/latest/), [pdfplumber](https://github.com/jsvine/pdfplumber), and pdftext.  I chose pymupdf because it extracts blocks and lines.  Pdfplumber extracts words and bboxes.  I did not benchmark pypdf, even though it is a great library, because it doesn't provide individual words/lines and bbox information.
 
 Here are the scores:
 
@@ -83,8 +85,8 @@ Here are the scores:
 |  Library   | Time (s per page) | Alignment Score (% accuracy vs pymupdf) |
 +------------+-------------------+-----------------------------------------+
 |  pymupdf   |       0.31        |                   --                    |
-|  pdftext   |       1.55        |                  95.73                  |
-| pdfplumber |       3.39        |                  89.55                  |
+|  pdftext   |       1.45        |                  95.64                  |
+| pdfplumber |       2.97        |                  89.88                  |
 +------------+-------------------+-----------------------------------------+
 
 pdftext is approximately 2x slower than using pypdfium2 alone (if you were to extract all the same information).
@@ -95,9 +97,25 @@ There are additional benchmarks for pypdfium2 and other tools [here](https://git
 
 I used a benchmark set of 200 pdfs extracted from [common crawl](https://huggingface.co/datasets/pixparse/pdfa-eng-wds), then processed by a team at HuggingFace.
 
-For each library, I used a detailed extraction method, to pull out font information, as well as just the words.  This ensured we were comparing similar elements.
+For each library, I used a detailed extraction method, to pull out font information, as well as just the words.  This ensured we were comparing similar performance numbers.
 
-For the alignment score, I extracted the text, flattened it by removing all non-newline whitespace, then used the rapidfuzz library to find the alignment percentage.  I used the text extracted by pymupdf as the pseudo-ground truth.
+For the alignment score, I extracted the text, then used the rapidfuzz library to find the alignment percentage.  I used the text extracted by pymupdf as the pseudo-ground truth.
+
+## Running benchmarks
+
+You can run the benchmarks yourself.  To do so, you have to first install pdftext manually.  The install assumes you have poetry and Python 3.9+ installed.
+
+```shell
+git clone https://github.com/VikParuchuri/pdftext.git
+cd pdftext
+poetry install
+python benchmark.py # Will download the benchmark pdfs automatically
+```
+
+The benchmark script has a few options:
+
+- `--max` this controls the maximum number of pdfs to benchmark
+- `--result_path` a folder to save the results.  A file called `results.json` will be created in the folder.
 
 # How it works
 

@@ -15,6 +15,10 @@ def update_previous_fonts(text_chars: Dict, i: int, fontname: str, fontflags: in
     for j in range(min_update, i): # Goes from min_update to i - 1
         if regather_font_info:
             fontname, fontflags = get_fontname(text_page, j)
+
+        # If we hit the region with the previous fontname, we can bail out
+        if fontname == prev_fontname:
+            break
         text_chars["chars"][j]["font"]["name"] = fontname
         text_chars["chars"][j]["font"]["flags"] = fontflags
 
@@ -38,17 +42,14 @@ def get_pdfium_chars(pdf_path, fontname_sample_freq=settings.FONTNAME_SAMPLE_FRE
             "bbox": pdfium_page_bbox_to_device_bbox(page, bbox, page_width, page_height)
         }
 
-        prev_bbox = None
         fontname = None
         fontflags = None
-        x_gaps = decimal.Decimal(0)
-        y_gaps = decimal.Decimal(0)
         total_chars = text_page.count_chars()
         for i in range(total_chars):
             char = pdfium_c.FPDFText_GetUnicode(text_page, i)
             char = chr(char)
-            fontsize = pdfium_c.FPDFText_GetFontSize(text_page, i)
-            fontweight = pdfium_c.FPDFText_GetFontWeight(text_page, i)
+            fontsize = round(pdfium_c.FPDFText_GetFontSize(text_page, i), 1)
+            fontweight = round(pdfium_c.FPDFText_GetFontWeight(text_page, i), 1)
             if fontname is None or i % fontname_sample_freq == 0:
                 prev_fontname = fontname
                 fontname, fontflags = get_fontname(text_page, i)
@@ -73,13 +74,6 @@ def get_pdfium_chars(pdf_path, fontname_sample_freq=settings.FONTNAME_SAMPLE_FRE
             }
             text_chars["chars"].append(char_info)
 
-            if prev_bbox:
-                x_gaps += decimal.Decimal(device_coords[0] - prev_bbox[2])
-                y_gaps += decimal.Decimal(device_coords[1] - prev_bbox[3])
-            prev_bbox = device_coords
-
-        text_chars["avg_x_gap"] = float(x_gaps / total_chars) if total_chars > 0 else 0
-        text_chars["avg_y_gap"] = float(y_gaps / total_chars) if total_chars > 0 else 0
         text_chars["total_chars"] = total_chars
         blocks.append(text_chars)
     return blocks
