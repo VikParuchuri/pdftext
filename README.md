@@ -1,6 +1,6 @@
 # PDFText
 
-Text extraction like [PyMuPDF]((https://github.com/pymupdf/PyMuPDF), but without the AGPL license.  PDFText extracts plain text or structured blocks and lines.  It's built on [pypdfium2](https://github.com/pypdfium2-team/pypdfium2), so it's [fast, accurate](#benchmarks), and Apache licensed.
+Text extraction like [PyMuPDF](https://github.com/pymupdf/PyMuPDF), but without the AGPL license.  PDFText extracts plain text or structured blocks and lines.  It's built on [pypdfium2](https://github.com/pypdfium2-team/pypdfium2), so it's [fast, accurate](#benchmarks), and Apache licensed.
 
 # Installation
 
@@ -81,13 +81,11 @@ I benchmarked extraction speed and accuracy of [pymupdf](https://pymupdf.readthe
 
 Here are the scores:
 
-+------------+-------------------+-----------------------------------------+
-|  Library   | Time (s per page) | Alignment Score (% accuracy vs pymupdf) |
-+------------+-------------------+-----------------------------------------+
-|  pymupdf   |       0.31        |                   --                    |
-|  pdftext   |       1.45        |                  95.64                  |
-| pdfplumber |       2.97        |                  89.88                  |
-+------------+-------------------+-----------------------------------------+
+| Library    | Time (s per page) | Alignment Score (% accuracy vs pymupdf) |
+|------------|-------------------|-----------------------------------------|
+| pymupdf    | 0.32              | --                                      |
+| pdftext    | 1.79              | 96.22                                   |
+| pdfplumber | 3.0               | 89.88                                   |
 
 pdftext is approximately 2x slower than using pypdfium2 alone (if you were to extract all the same information).
 
@@ -127,6 +125,6 @@ This is built on some amazing open source work, including:
 
 - [pypdfium2](https://github.com/pypdfium2-team/pypdfium2)
 - [scikit-learn](https://scikit-learn.org/stable/index.html)
-- [pypdf2](https://github.com/py-pdf/benchmarks) for very thorough and fair benchmarks
+- [pypdf](https://github.com/py-pdf/benchmarks) for very thorough and fair benchmarks
 
 Thank you to the [pymupdf](https://github.com/pymupdf/PyMuPDF) devs for creating such a great library - I just wish it had a simpler license!

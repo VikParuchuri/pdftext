@@ -96,7 +96,7 @@ def main():
     table_alignments.insert(0, "--")
 
     table = [(tool, time, alignment) for tool, time, alignment in zip(times_tools, table_times, table_alignments)]
-    table = tabulate.tabulate(table, tablefmt="pretty", headers=headers)
+    table = tabulate.tabulate(table, tablefmt="github", headers=headers)
     print(table)
 
     results = {

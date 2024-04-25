@@ -19,7 +19,7 @@ def update_current(current, new_char):
     return current
 
 
-def create_training_row(char_info, prev_char, currblock):
+def create_training_row(char_info, prev_char, currblock, currline):
     char = char_info["char"]
     char_center_x = (char_info["bbox"][2] + char_info["bbox"][0]) / 2
     char_center_y = (char_info["bbox"][3] + char_info["bbox"][1]) / 2
@@ -42,10 +42,18 @@ def create_training_row(char_info, prev_char, currblock):
         "font_match": font_match,
         "x_outer_gap": char_info["bbox"][2] - prev_char["bbox"][0],
         "y_outer_gap": char_info["bbox"][3] - prev_char["bbox"][1],
+        "line_x_center_gap": char_center_x - currline["center_x"],
+        "line_y_center_gap": char_center_y - currline["center_y"],
+        "line_x_gap": char_info["bbox"][0] - currline["bbox"][2],
+        "line_y_gap": char_info["bbox"][1] - currline["bbox"][3],
+        "line_x_start_gap": char_info["bbox"][0] - currline["bbox"][0],
+        "line_y_start_gap": char_info["bbox"][1] - currline["bbox"][1],
         "block_x_center_gap": char_center_x - currblock["center_x"],
         "block_y_center_gap": char_center_y - currblock["center_y"],
         "block_x_gap": char_info["bbox"][0] - currblock["bbox"][2],
-        "block_y_gap": char_info["bbox"][1] - currblock["bbox"][3]
+        "block_y_gap": char_info["bbox"][1] - currblock["bbox"][3],
+        "block_x_start_gap": char_info["bbox"][0] - currblock["bbox"][0],
+        "block_y_start_gap": char_info["bbox"][1] - currblock["bbox"][1]
     }
 
     return training_row
@@ -80,7 +88,7 @@ def infer_single_page(text_chars):
     span = {"chars": []}
     for i, char_info in enumerate(text_chars["chars"]):
         if prev_char:
-            training_row = create_training_row(char_info, prev_char, block)
+            training_row = create_training_row(char_info, prev_char, block, line)
             training_row = [v for _, v in sorted(training_row.items())]
 
             prediction = yield training_row
@@ -97,6 +105,7 @@ def infer_single_page(text_chars):
                 block = update_block(blocks, block)
 
         span["chars"].append(char_info)
+        line = update_current(line, char_info)
         block = update_current(block, char_info)
 
         prev_char = char_info
