@@ -1,5 +1,7 @@
 from itertools import chain
 
+import sklearn
+
 from pdftext.pdf.utils import LINE_BREAKS, TABS, SPACES
 
 
@@ -152,7 +154,9 @@ def inference(text_chars, model):
         training_rows = [tl[1] for tl in training_list]
         training_idxs = [tl[0] for tl in training_list]
 
-        predictions = model.predict(training_rows)
+        # Disable nan, etc, validation for a small speedup
+        with sklearn.config_context(assume_finite=True):
+            predictions = model.predict(training_rows)
         for pred, page_idx in zip(predictions, training_idxs):
             next_prediction[page_idx] = pred
     page_blocks = sorted(page_blocks.items())

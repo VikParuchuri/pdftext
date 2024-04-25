@@ -20,6 +20,6 @@ jobs:
           poetry install
       - name: Run detection benchmark test
         run: |
-          poetry run python benchmark.py --max 5 --result_path results
+          poetry run python benchmark.py --max 5 --result_path results --pdftext_only
           poetry run python scripts/verify_benchmark_scores.py results/results.json 
 

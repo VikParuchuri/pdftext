@@ -30,8 +30,8 @@ def pymupdf_inference(pdf_path):
             for line in block["lines"]:
                 for span in line["spans"]:
                     text += span["text"]
-            if not text.endswith("\n"):
-                text += "\n\n"
+                text = text.rstrip() + "\n"
+            text = text.rstrip() + "\n\n"
         pages.append(text)
     return pages
 
@@ -41,8 +41,10 @@ def pdfplumber_inference(pdf_path):
         pages = []
         for i in range(len(pdf.pages)):
             page = pdf.pages[i]
-            words = page.extract_words(use_text_flow=True)
-            text = "".join([word["text"] for word in words])
+            lines = page.extract_text_lines(strip=False, return_chars=True, keep_text_flow=True)
+            text = ""
+            for line in lines:
+                text += line["text"].rstrip() + "\n"
             pages.append(text)
     return pages
 
@@ -55,6 +57,7 @@ def main():
     parser = argparse.ArgumentParser(description="Benchmark pdf extraction.")
     parser.add_argument("--result_path", type=str, help="Path to the output text file, defaults to stdout", default=None)
     parser.add_argument("--max", type=int, help="Maximum number of pages to process.", default=None)
+    parser.add_argument("--pdftext_only", action="store_true", help="Only run pdftext inference", default=False)
     args = parser.parse_args()
 
     split = "train"
@@ -66,6 +69,9 @@ def main():
     alignments = defaultdict(list)
     times_tools = ["pymupdf", "pdftext", "pdfplumber"]
     alignment_tools = ["pdftext", "pdfplumber"]
+    if args.pdftext_only:
+        times_tools = ["pdftext", "pymupdf"]
+        alignment_tools = ["pdftext"]
     model = get_model()
     for i in tqdm(range(len(dataset)), desc="Benchmarking"):
         row = dataset[i]

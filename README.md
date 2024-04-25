@@ -2,6 +2,10 @@
 
 Text extraction like [PyMuPDF](https://github.com/pymupdf/PyMuPDF), but without the AGPL license.  PDFText extracts plain text or structured blocks and lines.  It's built on [pypdfium2](https://github.com/pypdfium2-team/pypdfium2), so it's [fast, accurate](#benchmarks), and Apache licensed.
 
+## Community
+
+[Discord](https://discord.gg//KuZwXNGnfH) is where we discuss future development.
+
 # Installation
 
 You'll need python 3.9+ first.  Then run `pip install pdftext`.
@@ -77,17 +81,17 @@ If you want more customization, check out the `pdftext.extraction._get_pages` fu
 
 # Benchmarks
 
-I benchmarked extraction speed and accuracy of [pymupdf](https://pymupdf.readthedocs.io/en/latest/), [pdfplumber](https://github.com/jsvine/pdfplumber), and pdftext.  I chose pymupdf because it extracts blocks and lines.  Pdfplumber extracts words and bboxes.  I did not benchmark pypdf, even though it is a great library, because it doesn't provide individual words/lines and bbox information.
+I benchmarked extraction speed and accuracy of [pymupdf](https://pymupdf.readthedocs.io/en/latest/), [pdfplumber](https://github.com/jsvine/pdfplumber), and pdftext.  I chose pymupdf because it extracts blocks and lines.  Pdfplumber extracts words and bboxes.  I did not benchmark pypdf, even though it is a great library, because it doesn't provide individual character/line/block and bbox information.
 
-Here are the scores:
+Here are the scores, run on an M1 Macbook, without multiprocessing:
 
 | Library    | Time (s per page) | Alignment Score (% accuracy vs pymupdf) |
 |------------|-------------------|-----------------------------------------|
 | pymupdf    | 0.32              | --                                      |
-| pdftext    | 1.79              | 96.22                                   |
-| pdfplumber | 3.0               | 89.88                                   |
+| pdftext    | 1.57              | 97.66                                   |
+| pdfplumber | 3.0               | 90.3                                    |
 
-pdftext is approximately 2x slower than using pypdfium2 alone (if you were to extract all the same information).
+pdftext is approximately 2x slower than using pypdfium2 alone (if you were to extract all the same character information).
 
 There are additional benchmarks for pypdfium2 and other tools [here](https://github.com/py-pdf/benchmarks).
 
@@ -95,7 +99,7 @@ There are additional benchmarks for pypdfium2 and other tools [here](https://git
 
 I used a benchmark set of 200 pdfs extracted from [common crawl](https://huggingface.co/datasets/pixparse/pdfa-eng-wds), then processed by a team at HuggingFace.
 
-For each library, I used a detailed extraction method, to pull out font information, as well as just the words.  This ensured we were comparing similar performance numbers.
+For each library, I used a detailed extraction method, to pull out font information, as well as just the words.  This ensured we were comparing similar performance numbers.  I formatted the text similarly when extracting - newlines after lines, and double newlines after blocks.  For pdfplumber, I could only do the newlines after lines, since it doesn't recognize blocks.
 
 For the alignment score, I extracted the text, then used the rapidfuzz library to find the alignment percentage.  I used the text extracted by pymupdf as the pseudo-ground truth.
 
@@ -114,10 +118,11 @@ The benchmark script has a few options:
 
 - `--max` this controls the maximum number of pdfs to benchmark
 - `--result_path` a folder to save the results.  A file called `results.json` will be created in the folder.
+- `--pdftext_only` skip running pdfplumber, which can be slow.
 
 # How it works
 
-PDFText is a very light wrapper around pypdfium2.  It first uses pypdfium2 to extract characters in order, along with font and other information.  Then it uses a simple decision tree algorithm to group characters into lines and blocks.  It then done some simple postprocessing to clean up the text.
+PDFText is a very light wrapper around pypdfium2.  It first uses pypdfium2 to extract characters in order, along with font and other information.  Then it uses a simple decision tree algorithm to group characters into lines and blocks.  It does some simple postprocessing to clean up the text.
 
 # Credits
 

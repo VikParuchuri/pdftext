@@ -62,11 +62,9 @@ def merge_text(page: Dict, sort=False) -> str:
             for char in line["chars"]:
                 line_text += char["char"]
             line_text = postprocess_text(line_text)
-            if line_text.endswith("\n"):
-                line_text = line_text[:-1].strip() + " "
+            line_text = line_text.rstrip() + "\n"
 
             block_text += line_text
-        if not block_text.endswith("\n"):
-            block_text += "\n\n"
+        block_text = block_text.rstrip() + "\n\n"
         text += block_text
     return text
