@@ -1,16 +1,12 @@
 # PDFText
 
-Text extraction like PyMuPDF, but without the AGPL license.  PDFText extracts plain text or structured blocks and lines, similar to [PymuPDF](https://github.com/pymupdf/PyMuPDF).  It's built on [pypdfium2](https://github.com/pypdfium2-team/pypdfium2), so it's [fast, accurate](https://github.com/py-pdf/benchmarks), and Apache licensed.
+Text extraction like [PyMuPDF]((https://github.com/pymupdf/PyMuPDF), but without the AGPL license.  PDFText extracts plain text or structured blocks and lines.  It's built on [pypdfium2](https://github.com/pypdfium2-team/pypdfium2), so it's [fast, accurate](#benchmarks), and Apache licensed.
 
 # Installation
 
-You'll need python 3.9+ first.  Then run:
+You'll need python 3.9+ first.  Then run `pip install pdftext`.
 
-```shell
-pip install pdftext
-```
-
-# CLI Usage
+# Usage
 
 - Inspect the settings in `pdftext/settings.py`.  You can override any settings with environment variables.
 
@@ -77,4 +73,42 @@ text = dictionary_output(PDF_PATH)
 
 If you want more customization, check out the `pdftext.extraction._get_pages` function for a starting point to dig deeper.  pdftext is a pretty thin wrapper around [pypdfium2](https://pypdfium2.readthedocs.io/en/stable/), so you might want to look at the documentation for that as well.
 
+# Benchmarks
 
+I benchmarked extraction speed and accuracy of [pymupdf](https://pymupdf.readthedocs.io/en/latest/), [pdfplumber](https://github.com/jsvine/pdfplumber), and pdftext.
+
+Here are the scores:
+
++------------+-------------------+-----------------------------------------+
+|  Library   | Time (s per page) | Alignment Score (% accuracy vs pymupdf) |
++------------+-------------------+-----------------------------------------+
+|  pymupdf   |       0.31        |                   --                    |
+|  pdftext   |       1.55        |                  95.73                  |
+| pdfplumber |       3.39        |                  89.55                  |
++------------+-------------------+-----------------------------------------+
+
+pdftext is approximately 2x slower than using pypdfium2 alone (if you were to extract all the same information).
+
+There are additional benchmarks for pypdfium2 and other tools [here](https://github.com/py-pdf/benchmarks).
+
+## Methodology
+
+I used a benchmark set of 200 pdfs extracted from [common crawl](https://huggingface.co/datasets/pixparse/pdfa-eng-wds), then processed by a team at HuggingFace.
+
+For each library, I used a detailed extraction method, to pull out font information, as well as just the words.  This ensured we were comparing similar elements.
+
+For the alignment score, I extracted the text, flattened it by removing all non-newline whitespace, then used the rapidfuzz library to find the alignment percentage.  I used the text extracted by pymupdf as the pseudo-ground truth.
+
+# How it works
+
+PDFText is a very light wrapper around pypdfium2.  It first uses pypdfium2 to extract characters in order, along with font and other information.  Then it uses a simple decision tree algorithm to group characters into lines and blocks.  It then done some simple postprocessing to clean up the text.
+
+# Credits
+
+This is built on some amazing open source work, including:
+
+- [pypdfium2](https://github.com/pypdfium2-team/pypdfium2)
+- [scikit-learn](https://scikit-learn.org/stable/index.html)
+- [pypdf2](https://github.com/py-pdf/benchmarks) for very thorough and fair benchmarks
+
+Thank you to the [pymupdf](https://github.com/pymupdf/PyMuPDF) devs for creating such a great library - I just wish it had a simpler license!

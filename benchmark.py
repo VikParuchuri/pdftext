@@ -4,12 +4,15 @@ import time
 from statistics import mean
 import os
 import json
+import re
 
 import fitz as pymupdf
 import datasets
 import pdfplumber
+from rapidfuzz import fuzz
+import tabulate
 
-from pdftext.extraction import dictionary_output
+from pdftext.extraction import paginated_plain_text_output
 from pdftext.settings import settings
 
 
@@ -18,7 +21,14 @@ def pymupdf_inference(pdf_path):
     pages = []
     for i in range(len(doc)):
         page = doc[i]
-        text = page.get_text("dict")
+        blocks = page.get_text("dict", flags=pymupdf.TEXTFLAGS_DICT & ~pymupdf.TEXT_PRESERVE_LIGATURES & ~pymupdf.TEXT_PRESERVE_IMAGES)
+        text = ""
+        for block in blocks["blocks"]:
+            for line in block["lines"]:
+                for span in line["spans"]:
+                    text += span["text"]
+            if not text.endswith("\n"):
+                text += "\n\n"
         pages.append(text)
     return pages
 
@@ -31,6 +41,15 @@ def pdfplumber_inference(pdf_path):
             text = page.extract_text()
             pages.append(text)
     return pages
+
+
+def flatten_text(page: str):
+    # Replace all text, except newlines, so we can compare block parsing effectively.
+    return re.sub(r'[ \t\r\f\v]+', '', page)
+
+
+def compare_docs(doc1: str, doc2: str):
+    return fuzz.ratio(flatten_text(doc1), flatten_text(doc2))
 
 
 def main():
@@ -47,6 +66,8 @@ def main():
     mu_times = []
     pdftext_times = []
     pdfplumber_times = []
+    pdftext_alignment = []
+    pdfplumber_alignment = []
     for i in range(len(dataset)):
         row = dataset[i]
         pdf = row["pdf"]
@@ -61,21 +82,39 @@ def main():
 
 
             start = time.time()
-            pdftext_pages = dictionary_output(pdf_path)
+            pdftext_pages = paginated_plain_text_output(pdf_path)
             pdftext_times.append(time.time() - start)
 
             start = time.time()
             pdfplumber_pages = pdfplumber_inference(pdf_path)
             pdfplumber_times.append(time.time() - start)
 
-    print(f"MuPDF avg time: {mean(mu_times):.2f}")
-    print(f"pdfplumber avg time: {mean(pdfplumber_times):.2f}")
-    print(f"pdftext avg time: {mean(pdftext_times):.2f}")
+            alignments = [compare_docs(mu_page, pdftext_page) for mu_page, pdftext_page in zip(mu_pages, pdftext_pages)]
+            pdftext_alignment.append(mean(alignments))
+
+            alignments = [compare_docs(mu_page, pdfplumber_page) for mu_page, pdfplumber_page in zip(mu_pages, pdfplumber_pages)]
+            pdfplumber_alignment.append(mean(alignments))
+
+    print("Benchmark Scores")
+    headers = ["Library", "Time (s per page)", "Alignment Score (% accuracy vs pymupdf)"]
+    table = [
+        ["pymupdf", round(mean(mu_times), 2), "--"],
+        ["pdftext", round(mean(pdftext_times), 2), round(mean(pdftext_alignment), 2)],
+        ["pdfplumber", round(mean(pdfplumber_times), 2), round(mean(pdfplumber_alignment), 2)]
+    ]
+    table = tabulate.tabulate(table, tablefmt="pretty", headers=headers)
+    print(table)
 
     results = {
-        "mu_times": mu_times,
-        "pdftext_times": pdftext_times,
-        "pdfplumber_times": pdfplumber_times
+        "times": {
+            "pymupdf": mean(mu_times),
+            "pdftext": mean(pdftext_times),
+            "pdfplumber": mean(pdfplumber_times)
+        },
+        "alignments": {
+            "pdftext": pdftext_alignment,
+            "pdfplumber": pdfplumber_alignment
+        }
     }
 
     result_path = args.result_path

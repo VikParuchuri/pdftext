@@ -1,3 +1,5 @@
+from typing import List
+
 from pdftext.inference import inference
 from pdftext.model import get_model
 from pdftext.pdf.chars import get_pdfium_chars
@@ -12,11 +14,16 @@ def _get_pages(pdf_path):
     return pages
 
 
-def plain_text_output(pdf_path, sort=False):
+def plain_text_output(pdf_path, sort=False) -> str:
+    text = paginated_plain_text_output(pdf_path, sort=sort)
+    return "\n".join(text)
+
+
+def paginated_plain_text_output(pdf_path, sort=False) -> List[str]:
     pages = _get_pages(pdf_path)
-    text = ""
+    text = []
     for page in pages:
-        text += merge_text(page, sort=sort).strip() + "\n"
+        text.append(merge_text(page, sort=sort).strip())
     return text
 
 

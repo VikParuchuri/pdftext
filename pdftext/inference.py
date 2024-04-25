@@ -1,6 +1,6 @@
 from itertools import chain
 
-from pdftext.pdf.utils import LINE_BREAKS
+from pdftext.pdf.utils import LINE_BREAKS, TABS, SPACES
 
 
 def update_current(current, new_char):
@@ -25,11 +25,21 @@ def create_training_row(char_info, prev_char, currblock, avg_x_gap, avg_y_gap):
     char_center_y = (char_info["bbox"][3] + char_info["bbox"][1]) / 2
     x_gap = char_info["bbox"][0] - prev_char["bbox"][2]
     y_gap = char_info["bbox"][1] - prev_char["bbox"][3]
+    font_match = all(
+        [char_info["font"][key] == prev_char["font"][key] for key in ["name", "size", "weight", "flags"]] +
+        [char_info["rotation"] == prev_char["rotation"]]
+    )
+    is_space = any([
+        char in SPACES,
+        char in TABS,
+    ])
 
     training_row = {
         "is_newline": char in LINE_BREAKS,
+        "is_space": is_space,
         "x_gap": x_gap,
         "y_gap": y_gap,
+        "font_match": font_match,
         "x_outer_gap": char_info["bbox"][2] - prev_char["bbox"][0],
         "y_outer_gap": char_info["bbox"][3] - prev_char["bbox"][1],
         "x_gap_ratio": x_gap / avg_x_gap if avg_x_gap > 0 else 0,
