@@ -100,21 +100,40 @@ def fast_page_bbox_to_device_bbox(page, bbox, page_width, page_height):
 
 
 def page_bbox_to_device_bbox(page, bbox, page_width: int, page_height: int, bl_origin: bool, page_rotation: int, normalize=False):
+    orig_page_height, orig_page_width = page_height, page_width
+    if page_rotation in [90, 270]:
+        orig_page_height, orig_page_width = page_width, page_height
+
     if bl_origin:
         bbox = fast_page_bbox_to_device_bbox(page, bbox, page_width, page_height)
+        if page_rotation > 0:
+            bbox = rotate_page_bbox(bbox, page_rotation, page_width, page_height)
     else:
-        # Do not rotate here, since we'll do it manually later
-        bbox = pdfium_page_bbox_to_device_bbox(page, bbox, page_width, page_height, 0)
-
-    if page_rotation > 0:
-        bbox = rotate_bbox(bbox, page_rotation, page_width, page_height)
+        bbox = pdfium_page_bbox_to_device_bbox(page, bbox, orig_page_width, orig_page_height, page_rotation)
+        if page_rotation > 0:
+            bbox = rotate_pdfium_bbox(bbox, page_rotation, page_width, page_height)
 
     if normalize:
         bbox = [bbox[0] / page_width, bbox[1] / page_height, bbox[2] / page_width, bbox[3] / page_height]
     return bbox
 
 
-def rotate_bbox(bbox, angle_deg, width, height):
+def rotate_pdfium_bbox(bbox, angle_deg, width, height):
+    x1, y1, x2, y2 = bbox
+    if angle_deg == 90:
+        bbox = [y1, x1, y2, x2]
+        bbox = [bbox[2], height - bbox[1], bbox[0], height - bbox[3]]
+    elif angle_deg == 180:
+        bbox = [x2, y2, x1, y1]
+        bbox = [width - bbox[0], height - bbox[1], width - bbox[2], height - bbox[3]]
+    elif angle_deg == 270:
+        bbox = rotate_pdfium_bbox(bbox, 90, width, height)
+        bbox = rotate_pdfium_bbox(bbox, 180, width, height)
+
+    return bbox
+
+
+def rotate_page_bbox(bbox, angle_deg, width, height):
     x1, y1, x2, y2 = bbox
     if angle_deg == 90:
         bbox = [y1, x1, y2, x2]
@@ -123,7 +142,7 @@ def rotate_bbox(bbox, angle_deg, width, height):
         bbox = [x2, y2, x1, y1]
         bbox = [width - bbox[0], height - bbox[1], width - bbox[2], height - bbox[3]]
     elif angle_deg == 270:
-        bbox = rotate_bbox(bbox, 90, width, height)
-        bbox = rotate_bbox(bbox, 180, width, height)
+        bbox = rotate_page_bbox(bbox, 90, width, height)
+        bbox = rotate_page_bbox(bbox, 180, width, height)
 
     return bbox

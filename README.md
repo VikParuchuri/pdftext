@@ -59,6 +59,8 @@ The output will be a json list, with each item in the list corresponding to a si
         - `name` - font name, may be None
         - `flags` - font flags, in the format of the `PDF spec 1.7 Section 5.7.1 Font Descriptor Flags`
 
+If the pdf is rotated, the bboxes will be relative to the rotated page (they're rotated after being extracted).
+
 # Programmatic usage
 
 Extract plain text:
