@@ -78,20 +78,25 @@ def page_to_device(page, x, y, page_width, page_height):
 
 
 def pdfium_page_bbox_to_device_bbox(page, bbox, page_width, page_height, normalize=False):
-    bbox_width = bbox[2] - bbox[0]
-    bbox_height = bbox[3] - bbox[1]
     left_bottom = page_to_device(page, *bbox[:2], page_width, page_height)
+    top_right = page_to_device(page, *bbox[2:], page_width, page_height)
 
-    dev_bbox = [left_bottom[0], left_bottom[1] - bbox_height, left_bottom[0] + bbox_width, left_bottom[1]]   # Convert to ltrb
+    dev_bbox = [left_bottom[0], top_right[1], top_right[0], left_bottom[1]]
     if normalize:
         dev_bbox = [dev_bbox[0] / page_width, dev_bbox[1] / page_height, dev_bbox[2] / page_width, dev_bbox[3] / page_height]
     return dev_bbox
 
 
-def page_bbox_to_device_bbox(page, bbox, page_width, page_height, normalize=False):
+def fast_page_bbox_to_device_bbox(page, bbox, page_width, page_height, normalize=False):
     left, bottom, right, top = bbox
 
     dev_bbox = [left, page_height-top, right, page_height-bottom]
     if normalize:
         dev_bbox = [dev_bbox[0] / page_width, dev_bbox[1] / page_height, dev_bbox[2] / page_width, dev_bbox[3] / page_height]
     return dev_bbox
+
+
+def page_bbox_to_device_bbox(page, bbox, page_width: int, page_height: int, bl_origin: bool, normalize=False):
+    if bl_origin:
+        return fast_page_bbox_to_device_bbox(page, bbox, page_width, page_height, normalize)
+    return pdfium_page_bbox_to_device_bbox(page, bbox, page_width, page_height, normalize)

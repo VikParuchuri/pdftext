@@ -30,6 +30,8 @@ def get_pdfium_chars(pdf_path, fontname_sample_freq=settings.FONTNAME_SAMPLE_FRE
     for page_idx in range(len(pdf)):
         page = pdf.get_page(page_idx)
         text_page = page.get_textpage()
+        mediabox = page.get_mediabox()
+        bl_origin = mediabox[0] == 0 and mediabox[1] == 0
 
         bbox = page.get_bbox()
         page_width = math.ceil(bbox[2] - bbox[0])
@@ -58,7 +60,7 @@ def get_pdfium_chars(pdf_path, fontname_sample_freq=settings.FONTNAME_SAMPLE_FRE
             rotation = pdfium_c.FPDFText_GetCharAngle(text_page, i)
             rotation = rotation * 180 / math.pi # convert from radians to degrees
             coords = text_page.get_charbox(i, loose=True)
-            device_coords = page_bbox_to_device_bbox(page, coords, page_width, page_height, normalize=True)
+            device_coords = page_bbox_to_device_bbox(page, coords, page_width, page_height, bl_origin, normalize=True)
 
             char_info = {
                 "font": {
