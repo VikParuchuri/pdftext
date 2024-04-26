@@ -31,17 +31,32 @@ def get_pdfium_chars(pdf_path, fontname_sample_freq=settings.FONTNAME_SAMPLE_FRE
         page = pdf.get_page(page_idx)
         text_page = page.get_textpage()
         mediabox = page.get_mediabox()
-        bl_origin = mediabox[0] == 0 and mediabox[1] == 0
-
+        page_rotation = page.get_rotation()
         bbox = page.get_bbox()
-        page_width = math.ceil(bbox[2] - bbox[0])
+        page_width = math.ceil(abs(bbox[2] - bbox[0]))
         page_height = math.ceil(abs(bbox[1] - bbox[3]))
+        bbox = pdfium_page_bbox_to_device_bbox(page, bbox, page_width, page_height, page_rotation)
+
+        # Recalculate page width and height with new bboxes
+        page_width = math.ceil(abs(bbox[2] - bbox[0]))
+        page_height = math.ceil(abs(bbox[1] - bbox[3]))
+
+        # Flip width and height if rotated
+        if page_rotation == 90 or page_rotation == 270:
+            page_width, page_height = page_height, page_width
+
+        bl_origin = all([
+            mediabox[0] == 0,
+            mediabox[1] == 0
+        ])
 
         text_chars = {
             "chars": [],
             "page": page_idx,
-            "rotation": page.get_rotation(),
-            "bbox": pdfium_page_bbox_to_device_bbox(page, bbox, page_width, page_height)
+            "rotation": page_rotation,
+            "bbox": bbox,
+            "width": page_width,
+            "height": page_height,
         }
 
         fontname = None
@@ -59,8 +74,8 @@ def get_pdfium_chars(pdf_path, fontname_sample_freq=settings.FONTNAME_SAMPLE_FRE
 
             rotation = pdfium_c.FPDFText_GetCharAngle(text_page, i)
             rotation = rotation * 180 / math.pi # convert from radians to degrees
-            coords = text_page.get_charbox(i, loose=True)
-            device_coords = page_bbox_to_device_bbox(page, coords, page_width, page_height, bl_origin, normalize=True)
+            coords = text_page.get_charbox(i, loose=False)
+            device_coords = page_bbox_to_device_bbox(page, coords, page_width, page_height, bl_origin, page_rotation, normalize=True)
 
             char_info = {
                 "font": {

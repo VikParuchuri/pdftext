@@ -90,7 +90,14 @@ def update_block(blocks, block):
 def infer_single_page(text_chars):
     prev_char = None
 
-    blocks = {"blocks": []}
+    blocks = {
+        "blocks": [],
+        "page": text_chars["page"],
+        "rotation": text_chars["rotation"],
+        "bbox": text_chars["bbox"],
+        "width": text_chars["width"],
+        "height": text_chars["height"],
+    }
     block = {"lines": []}
     line = {"spans": []}
     span = {"chars": []}
@@ -125,9 +132,6 @@ def infer_single_page(text_chars):
     if len(block["lines"]) > 0:
         update_block(blocks, block)
 
-    blocks["page"] = text_chars["page"]
-    blocks["rotation"] = text_chars["rotation"]
-    blocks["bbox"] = text_chars["bbox"]
     return blocks
 
 

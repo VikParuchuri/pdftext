@@ -36,24 +36,14 @@ def dictionary_output(pdf_path, sort=False, model=None):
             for key in bad_keys:
                 del block[key]
             for line in block["lines"]:
-                line_box = None
                 bad_keys = [key for key in line.keys() if key not in ["chars", "bbox"]]
                 for key in bad_keys:
                     del line[key]
                 for char in line["chars"]:
-                    char["bbox"] = unnormalize_bbox(char["bbox"], page["bbox"])
+                    char["bbox"] = unnormalize_bbox(char["bbox"], page["width"], page["height"])
                     char["char"] = postprocess_text(char["char"])
-                    if line_box is None:
-                        line_box = char["bbox"]
-                    else:
-                        line_box = [
-                            min(line_box[0], char["bbox"][0]),
-                            min(line_box[1], char["bbox"][1]),
-                            max(line_box[2], char["bbox"][2]),
-                            max(line_box[3], char["bbox"][3]),
-                        ]
-                line["bbox"] = line_box
-            block["bbox"] = unnormalize_bbox(block["bbox"], page["bbox"])
+                line["bbox"] = unnormalize_bbox(line["bbox"], page["width"], page["height"])
+            block["bbox"] = unnormalize_bbox(block["bbox"], page["width"], page["height"])
         if sort:
             page["blocks"] = sort_blocks(page["blocks"])
     return pages
