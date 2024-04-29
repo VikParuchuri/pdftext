@@ -13,6 +13,7 @@ import pdfplumber
 from rapidfuzz import fuzz
 import tabulate
 from tqdm import tqdm
+import pypdfium2 as pdfium
 
 from pdftext.extraction import paginated_plain_text_output
 from pdftext.model import get_model
@@ -31,7 +32,7 @@ def pymupdf_inference(pdf_path):
                 for span in line["spans"]:
                     text += span["text"]
                 text = text.rstrip() + "\n"
-            text = text.rstrip() + "\n\n"
+            text = text.rstrip() + "\n"
         pages.append(text)
     return pages
 
@@ -47,6 +48,11 @@ def pdfplumber_inference(pdf_path):
                 text += line["text"].rstrip() + "\n"
             pages.append(text)
     return pages
+
+
+def pdftext_inference(pdf_path, model):
+    pdf = pdfium.PdfDocument(pdf_path)
+    return paginated_plain_text_output(pdf, model=model)
 
 
 def compare_docs(doc1: str, doc2: str):
@@ -70,7 +76,7 @@ def main():
     times_tools = ["pymupdf", "pdftext", "pdfplumber"]
     alignment_tools = ["pdftext", "pdfplumber"]
     if args.pdftext_only:
-        times_tools = ["pdftext", "pymupdf"]
+        times_tools = ["pymupdf", "pdftext"]
         alignment_tools = ["pdftext"]
     model = get_model()
     for i in tqdm(range(len(dataset)), desc="Benchmarking"):
@@ -82,8 +88,8 @@ def main():
             f.seek(0)
             pdf_path = f.name
 
-            pdftext_inference = partial(paginated_plain_text_output, model=model)
-            inference_funcs = [pymupdf_inference, pdftext_inference, pdfplumber_inference]
+            pdftext_inference_model = partial(pdftext_inference, model=model)
+            inference_funcs = [pymupdf_inference, pdftext_inference_model, pdfplumber_inference]
             for tool, inference_func in zip(times_tools, inference_funcs):
                 start = time.time()
                 pages = inference_func(pdf_path)
