@@ -1,5 +1,6 @@
 import argparse
 import json
+import pypdfium2 as pdfium
 
 from pdftext.extraction import plain_text_output, dictionary_output
 
@@ -8,18 +9,23 @@ def main():
     parser = argparse.ArgumentParser(description="Extract plain text from PDF.  Not guaranteed to be in order.")
     parser.add_argument("pdf_path", type=str, help="Path to the PDF file")
     parser.add_argument("--out_path", type=str, help="Path to the output text file, defaults to stdout", default=None)
-    parser.add_argument("--output_type", type=str, help="Type of output to generate", default="plain_text")
+    parser.add_argument("--json", action="store_true", help="Output json instead of plain text", default=False)
     parser.add_argument("--sort", action="store_true", help="Attempt to sort the text by reading order", default=False)
     parser.add_argument("--keep_hyphens", action="store_true", help="Keep hyphens in words", default=False)
+    parser.add_argument("--pages", type=str, help="Comma separated pages to extract, like 1,2,3", default=None)
     args = parser.parse_args()
 
-    assert args.output_type in ["plain_text", "json"], "Invalid output type, must be 'plain_text' or 'json'"
+    pdf_doc = pdfium.PdfDocument(args.pdf_path)
+    pages = None
+    if args.pages is not None:
+        pages = [int(p) for p in args.pages.split(",")]
+        assert all(p <= len(pdf_doc) for p in pages), "Invalid page number(s) provided"
 
-    if args.output_type == "plain_text":
-        text = plain_text_output(args.pdf_path, sort=args.sort, hyphens=args.keep_hyphens)
-    elif args.output_type == "json":
-        text = dictionary_output(args.pdf_path, sort=args.sort)
+    if args.json:
+        text = dictionary_output(pdf_doc, sort=args.sort, page_range=pages)
         text = json.dumps(text)
+    else:
+        text = plain_text_output(pdf_doc, sort=args.sort, hyphens=args.keep_hyphens, page_range=pages)
 
     if args.out_path is None:
         print(text)

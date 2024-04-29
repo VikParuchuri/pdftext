@@ -23,11 +23,12 @@ def update_previous_fonts(text_chars: Dict, i: int, fontname: str, fontflags: in
         text_chars["chars"][j]["font"]["flags"] = fontflags
 
 
-def get_pdfium_chars(pdf_path, fontname_sample_freq=settings.FONTNAME_SAMPLE_FREQ):
-    pdf = pdfium.PdfDocument(pdf_path)
+def get_pdfium_chars(pdf, fontname_sample_freq=settings.FONTNAME_SAMPLE_FREQ, page_range=None):
     blocks = []
+    if page_range is None:
+        page_range = range(len(pdf))
 
-    for page_idx in range(len(pdf)):
+    for page_idx in page_range:
         page = pdf.get_page(page_idx)
         text_page = page.get_textpage()
         mediabox = page.get_mediabox()

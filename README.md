@@ -26,19 +26,21 @@ pdftext PDF_PATH --out_path output.txt
 - `--out_path` path to the output txt file.  If not specified, will write to stdout.
 - `--sort` will attempt to sort in reading order if specified.
 - `--keep_hyphens` will keep hyphens in the output (they will be stripped and words joined otherwise)
+- `--pages` will specify pages (comma separated) to extract
 
 ## JSON
 
 This command outputs structured blocks and lines with font and other information.
 
 ```shell
-pdftext PDF_PATH --out_path output.txt --output_type json
+pdftext PDF_PATH --out_path output.txt --json
 ```
 
 - `PDF_PATH` must be a single pdf file.
 - `--out_path` path to the output txt file.  If not specified, will write to stdout.
-- `--output_type` specifies whether to write out plain text (default) or json
+- `--json` specifies json output
 - `--sort` will attempt to sort in reading order if specified.
+- `--pages` will specify pages (comma separated) to extract
 
 The output will be a json list, with each item in the list corresponding to a single page in the input pdf (in order).  Each page will include the following keys:
 
@@ -68,17 +70,21 @@ If the pdf is rotated, the bboxes will be relative to the rotated page (they're 
 Extract plain text:
 
 ```python
+import pypdfium2 as pdfium
 from pdftext.extraction import plain_text_output
 
-text = plain_text_output(PDF_PATH, sort=False)
+pdf = pdfium.PdfDocument(PDF_PATH)
+text = plain_text_output(pdf, sort=False, hyphens=False, page_range=[1,2,3]) # Optional arguments explained above
 ```
 
 Extract structured blocks and lines:
 
 ```python
+import pypdfium2 as pdfium
 from pdftext.extraction import dictionary_output
 
-text = dictionary_output(PDF_PATH)
+pdf = pdfium.PdfDocument(PDF_PATH)
+text = dictionary_output(pdf, sort=False, page_range=[1,2,3]) # Optional arguments explained above
 ```
 
 If you want more customization, check out the `pdftext.extraction._get_pages` function for a starting point to dig deeper.  pdftext is a pretty thin wrapper around [pypdfium2](https://pypdfium2.readthedocs.io/en/stable/), so you might want to look at the documentation for that as well.

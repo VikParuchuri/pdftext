@@ -29,7 +29,7 @@ def postprocess_text(text: str) -> str:
 
 def handle_hyphens(text: str, keep_hyphens=False) -> str:
     if keep_hyphens:
-        text = text.replace(HYPHEN_CHAR, "-")
+        text = text.replace(HYPHEN_CHAR, "-\n")
     elif len(text) == 0:
         pass
     else:
@@ -106,7 +106,7 @@ def merge_text(page: Dict, sort=False, hyphens=False) -> str:
             line_text = line_text.rstrip() + "\n"
 
             block_text += line_text
-        block_text = block_text.rstrip() + "\n\n"
+        block_text = block_text.rstrip() + "\n"
         text += block_text
     text = handle_hyphens(text, keep_hyphens=hyphens)
     return text

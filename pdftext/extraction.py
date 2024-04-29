@@ -7,29 +7,29 @@ from pdftext.pdf.utils import unnormalize_bbox
 from pdftext.postprocessing import merge_text, sort_blocks, postprocess_text, handle_hyphens
 
 
-def _get_pages(pdf_path, model=None):
+def _get_pages(pdf_doc, model=None, page_range=None):
     if model is None:
         model = get_model()
-    text_chars = get_pdfium_chars(pdf_path)
+    text_chars = get_pdfium_chars(pdf_doc, page_range=page_range)
     pages = inference(text_chars, model)
     return pages
 
 
-def plain_text_output(pdf_path, sort=False, model=None, hyphens=False) -> str:
-    text = paginated_plain_text_output(pdf_path, sort=sort, model=model, hyphens=hyphens)
+def plain_text_output(pdf_doc, sort=False, model=None, hyphens=False, page_range=None) -> str:
+    text = paginated_plain_text_output(pdf_doc, sort=sort, model=model, hyphens=hyphens, page_range=page_range)
     return "\n".join(text)
 
 
-def paginated_plain_text_output(pdf_path, sort=False, model=None, hyphens=False) -> List[str]:
-    pages = _get_pages(pdf_path, model)
+def paginated_plain_text_output(pdf_doc, sort=False, model=None, hyphens=False, page_range=None) -> List[str]:
+    pages = _get_pages(pdf_doc, model, page_range)
     text = []
     for page in pages:
         text.append(merge_text(page, sort=sort, hyphens=hyphens).strip())
     return text
 
 
-def dictionary_output(pdf_path, sort=False, model=None):
-    pages = _get_pages(pdf_path, model)
+def dictionary_output(pdf_doc, sort=False, model=None, page_range=None):
+    pages = _get_pages(pdf_doc, model, page_range)
     for page in pages:
         for block in page["blocks"]:
             bad_keys = [key for key in block.keys() if key not in ["lines", "bbox"]]
