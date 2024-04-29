@@ -5,19 +5,9 @@ import math
 from pdftext.settings import settings
 
 LINE_BREAKS = ["\n", "\u000D", "\u000A", "\u000C"]
-TABS = ["\t", "\u0009"]
+TABS = ["\t", "\u0009", "\x09"]
 SPACES = [" ", "\ufffe", "\uFEFF", "\xa0"]
-HYPHEN = "-"
 WHITESPACE_CHARS = ["\n", "\r", "\f", "\t", " "]
-LIGATURES = {
-    "ﬀ": "ff",
-    "ﬃ": "ffi",
-    "ﬄ": "ffl",
-    "ﬁ": "fi",
-    "ﬂ": "fl",
-    "ﬆ": "st",
-    "ﬅ": "st",
-}
 
 
 def char_count(textpage, *rect):

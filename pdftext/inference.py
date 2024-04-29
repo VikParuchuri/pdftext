@@ -68,14 +68,25 @@ def create_training_row(char_info, prev_char, currblock, currline):
 
 
 def update_span(line, span):
+    if len(span["chars"]) > 0:
+        span["font"] = span["chars"][0]["font"]
+        span["rotation"] = span["chars"][0]["rotation"]
+        char_bboxes = [char["bbox"] for char in span["chars"]]
+        span["bbox"] = [min([bbox[0] for bbox in char_bboxes]),
+                        min([bbox[1] for bbox in char_bboxes]),
+                        max([bbox[2] for bbox in char_bboxes]),
+                        max([bbox[3] for bbox in char_bboxes])]
+        span["text"] = "".join([char["char"] for char in span["chars"]])
+        span["char_start_idx"] = span["chars"][0]["char_idx"]
+        span["char_end_idx"] = span["chars"][-1]["char_idx"]
+
+    del span["chars"]
     line["spans"].append(span)
     span = {"chars": []}
     return span
 
 
 def update_line(block, line):
-    line["chars"] = list(chain.from_iterable(s["chars"] for s in line["spans"]))
-    del line["spans"]
     block["lines"].append(line)
     line = {"spans": []}
     return line
@@ -89,6 +100,7 @@ def update_block(blocks, block):
 
 def infer_single_page(text_chars):
     prev_char = None
+    prev_font_info = None
 
     blocks = {
         "blocks": [],
@@ -102,6 +114,7 @@ def infer_single_page(text_chars):
     line = {"spans": []}
     span = {"chars": []}
     for i, char_info in enumerate(text_chars["chars"]):
+        font_info = f"{char_info['font']['name']}_{char_info['font']['size']}_{char_info['font']['weight']}_{char_info['font']['flags']}_{char_info['rotation']}"
         if prev_char:
             training_row = create_training_row(char_info, prev_char, block, line)
             sorted_keys = sorted(training_row.keys())
@@ -110,21 +123,22 @@ def infer_single_page(text_chars):
             prediction = yield training_row
             if prediction == 0:
                 pass
-            elif prediction == 1:
-                span = update_span(line, span)
-            elif prediction == 2:
+            elif prev_char["char"] == "\n" or prediction == 2: # Look for newline character as a forcing signal for a new line
                 span = update_span(line, span)
                 line = update_line(block, line)
-            else:
+            elif prediction == 3:
                 span = update_span(line, span)
                 line = update_line(block, line)
                 block = update_block(blocks, block)
+            elif prev_font_info != font_info:
+                span = update_span(line, span)
 
         span["chars"].append(char_info)
         update_current(line, char_info)
         update_current(block, char_info)
 
         prev_char = char_info
+        prev_font_info = font_info
     if len(span["chars"]) > 0:
         update_span(line, span)
     if len(line["spans"]) > 0:

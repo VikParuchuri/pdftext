@@ -10,12 +10,13 @@ def main():
     parser.add_argument("--out_path", type=str, help="Path to the output text file, defaults to stdout", default=None)
     parser.add_argument("--output_type", type=str, help="Type of output to generate", default="plain_text")
     parser.add_argument("--sort", action="store_true", help="Attempt to sort the text by reading order", default=False)
+    parser.add_argument("--keep_hyphens", action="store_true", help="Keep hyphens in words", default=False)
     args = parser.parse_args()
 
     assert args.output_type in ["plain_text", "json"], "Invalid output type, must be 'plain_text' or 'json'"
 
     if args.output_type == "plain_text":
-        text = plain_text_output(args.pdf_path, sort=args.sort)
+        text = plain_text_output(args.pdf_path, sort=args.sort, hyphens=args.keep_hyphens)
     elif args.output_type == "json":
         text = dictionary_output(args.pdf_path, sort=args.sort)
         text = json.dumps(text)

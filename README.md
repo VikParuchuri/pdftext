@@ -25,6 +25,7 @@ pdftext PDF_PATH --out_path output.txt
 - `PDF_PATH` must be a single pdf file.
 - `--out_path` path to the output txt file.  If not specified, will write to stdout.
 - `--sort` will attempt to sort in reading order if specified.
+- `--keep_hyphens` will keep hyphens in the output (they will be stripped and words joined otherwise)
 
 ## JSON
 
@@ -48,13 +49,14 @@ The output will be a json list, with each item in the list corresponding to a si
   - `bbox` - the block bbox, in `[x1, y1, x2, y2]` format
   - `lines` - the lines inside the block
     - `bbox` - the line bbox, in `[x1, y1, x2, y2]` format
-    - `chars` - the individual characters in the line
-      - `char` - the actual character, encoded in utf-8
-      - `rotation` - how much the character is rotated, in degrees
-      - `bbox` - the character bbox, in `[x1, y1, x2, y2]` format
-      - `char_idx` - the index of the character on the page (from `0` to number of characters, in original pdf order)
+    - `spans` - the individual text spans in the line (text spans have the same font/weight/etc)
+      - `text` - the text in the span, encoded in utf-8
+      - `rotation` - how much the span is rotated, in degrees
+      - `bbox` - the span bbox, in `[x1, y1, x2, y2]` format
+      - `char_start_idx` - the start index of the first span character in the pdf
+      - `char_end_idx` - the end index of the last span character in the pdf
       - `font` this is font info straight from the pdf, see [this pdfium code](https://pdfium.googlesource.com/pdfium/+/refs/heads/main/public/fpdf_text.h)
-        - `size` - the size of the font used for the character
+        - `size` - the size of the font used for the text
         - `weight` - font weight
         - `name` - font name, may be None
         - `flags` - font flags, in the format of the `PDF spec 1.7 Section 5.7.1 Font Descriptor Flags`
