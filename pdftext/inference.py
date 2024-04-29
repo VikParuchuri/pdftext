@@ -123,13 +123,13 @@ def infer_single_page(text_chars):
             prediction = yield training_row
             if prediction == 0:
                 pass
-            elif prev_char["char"] == "\n" or prediction == 2: # Look for newline character as a forcing signal for a new line
-                span = update_span(line, span)
-                line = update_line(block, line)
-            elif prediction == 3:
+            elif prediction == 2 and prev_char["char"] in LINE_BREAKS:
                 span = update_span(line, span)
                 line = update_line(block, line)
                 block = update_block(blocks, block)
+            elif prev_char["char"] in LINE_BREAKS and prediction == 1: # Look for newline character as a forcing signal for a new line
+                span = update_span(line, span)
+                line = update_line(block, line)
             elif prev_font_info != font_info:
                 span = update_span(line, span)
 

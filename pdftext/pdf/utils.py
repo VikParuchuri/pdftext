@@ -4,7 +4,7 @@ import math
 
 from pdftext.settings import settings
 
-LINE_BREAKS = ["\n", "\u000D", "\u000A", "\u000C"]
+LINE_BREAKS = ["\n", "\u000D", "\u000A"]
 TABS = ["\t", "\u0009", "\x09"]
 SPACES = [" ", "\ufffe", "\uFEFF", "\xa0"]
 WHITESPACE_CHARS = ["\n", "\r", "\f", "\t", " "]
