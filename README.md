@@ -46,7 +46,7 @@ The output will be a json list, with each item in the list corresponding to a si
 
 - `bbox` - the page bbox, in `[x1, y1, x2, y2]` format
 - `rotation` - how much the page is rotated, in degrees (`0`, `90`, `180`, or `270`)
-- `page_idx` - the index of the page
+- `page` - the index of the page
 - `blocks` - the blocks that make up the text in the pdf.  Approximately equal to a paragraph.
   - `bbox` - the block bbox, in `[x1, y1, x2, y2]` format
   - `lines` - the lines inside the block

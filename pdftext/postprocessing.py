@@ -36,7 +36,7 @@ def handle_hyphens(text: str, keep_hyphens=False) -> str:
         new_text = ""
         found_hyphen = False
         for i in range(len(text) - 1):
-            if text[i] == HYPHEN_CHAR and text[i+1] in LINE_BREAKS:
+            if text[i] == HYPHEN_CHAR:
                 found_hyphen = True
             elif found_hyphen:
                 if text[i] in LINE_BREAKS:
@@ -106,7 +106,7 @@ def merge_text(page: Dict, sort=False, hyphens=False) -> str:
             line_text = line_text.rstrip() + "\n"
 
             block_text += line_text
-        block_text = block_text.rstrip() + "\n"
+        block_text = block_text.rstrip() + "\n\n"
         text += block_text
     text = handle_hyphens(text, keep_hyphens=hyphens)
     return text

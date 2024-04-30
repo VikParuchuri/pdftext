@@ -32,7 +32,7 @@ def pymupdf_inference(pdf_path):
                 for span in line["spans"]:
                     text += span["text"]
                 text = text.rstrip() + "\n"
-            text = text.rstrip() + "\n"
+            text = text.rstrip() + "\n\n"
         pages.append(text)
     return pages
 

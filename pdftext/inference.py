@@ -3,6 +3,7 @@ from itertools import chain
 import sklearn
 
 from pdftext.pdf.utils import LINE_BREAKS, TABS, SPACES
+from pdftext.settings import settings
 
 
 def update_current(current, new_char):
@@ -98,7 +99,7 @@ def update_block(blocks, block):
     return block
 
 
-def infer_single_page(text_chars):
+def infer_single_page(text_chars, block_threshold=settings.BLOCK_THRESHOLD):
     prev_char = None
     prev_font_info = None
 
@@ -120,14 +121,15 @@ def infer_single_page(text_chars):
             sorted_keys = sorted(training_row.keys())
             training_row = [training_row[key] for key in sorted_keys]
 
-            prediction = yield training_row
-            if prediction == 0:
+            prediction_probs = yield training_row
+            # First item is probability of same line/block, second is probability of new line, third is probability of new block
+            if prediction_probs[0] >= .5:
                 pass
-            elif prediction == 2 and prev_char["char"] in LINE_BREAKS:
+            elif prediction_probs[2] > block_threshold:
                 span = update_span(line, span)
                 line = update_line(block, line)
                 block = update_block(blocks, block)
-            elif prev_char["char"] in LINE_BREAKS and prediction == 1: # Look for newline character as a forcing signal for a new line
+            elif prev_char["char"] in LINE_BREAKS and prediction_probs[1] >= .5: # Look for newline character as a forcing signal for a new line
                 span = update_span(line, span)
                 line = update_line(block, line)
             elif prev_font_info != font_info:
@@ -180,7 +182,7 @@ def inference(text_chars, model):
 
         # Disable nan, etc, validation for a small speedup
         with sklearn.config_context(assume_finite=True):
-            predictions = model.predict(training_rows)
+            predictions = model.predict_proba(training_rows)
         for pred, page_idx in zip(predictions, training_idxs):
             next_prediction[page_idx] = pred
     sorted_keys = sorted(page_blocks.keys())
