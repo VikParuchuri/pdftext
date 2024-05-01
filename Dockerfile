@@ -3,20 +3,20 @@ FROM python:3.12.3-alpine
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-RUN apk update && apk add python3-dev \
-                          gcc \
-                          musl-dev
-                          
+RUN apk add --no-cache \
+    build-base \
+    python3-dev \
+    py3-pip \
+    lapack-dev \
+    gfortran \
+    libffi-dev
 
 WORKDIR /app
 
-COPY extract_text.py  /app/
-COPY pdftext /app/
-COPY models /app/
-COPY scripts  /app/
-COPY requirements.txt /app/
+COPY .  /app/
+COPY pyproject.toml  /app/
                                                    
-RUN pip install --upgrade pip
-RUN pip install -r /app/requirements.txt
+RUN pip install poetry
+RUN poetry install --no-root
 
 CMD [ "python3", "extract_text.py" ] 
