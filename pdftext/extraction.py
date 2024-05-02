@@ -28,7 +28,7 @@ def paginated_plain_text_output(pdf_doc, sort=False, model=None, hyphens=False, 
     return text
 
 
-def dictionary_output(pdf_doc, sort=False, model=None, page_range=None):
+def dictionary_output(pdf_doc, sort=False, model=None, page_range=None, keep_chars=False):
     pages = _get_pages(pdf_doc, model, page_range)
     for page in pages:
         for block in page["blocks"]:
@@ -43,6 +43,12 @@ def dictionary_output(pdf_doc, sort=False, model=None, page_range=None):
                     span["bbox"] = unnormalize_bbox(span["bbox"], page["width"], page["height"])
                     span["text"] = postprocess_text(span["text"])
                     span["text"] = handle_hyphens(span["text"], keep_hyphens=True)
+
+                    if not keep_chars:
+                        del span["chars"]
+                    else:
+                        for char in span["chars"]:
+                            char["bbox"] = unnormalize_bbox(char["bbox"], page["width"], page["height"])
 
                 line["bbox"] = unnormalize_bbox(line["bbox"], page["width"], page["height"])
             block["bbox"] = unnormalize_bbox(block["bbox"], page["width"], page["height"])

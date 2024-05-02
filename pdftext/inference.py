@@ -81,7 +81,11 @@ def update_span(line, span):
         span["char_start_idx"] = span["chars"][0]["char_idx"]
         span["char_end_idx"] = span["chars"][-1]["char_idx"]
 
-    del span["chars"]
+    # Remove unneeded keys from the characters
+    for char in span["chars"]:
+        del_keys = [k for k in list(char.keys()) if k not in ["char", "bbox"]]
+        for key in del_keys:
+            del char[key]
     line["spans"].append(span)
     span = {"chars": []}
     return span

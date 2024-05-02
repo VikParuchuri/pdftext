@@ -41,6 +41,7 @@ pdftext PDF_PATH --out_path output.txt --json
 - `--json` specifies json output
 - `--sort` will attempt to sort in reading order if specified.
 - `--pages` will specify pages (comma separated) to extract
+- `--keep_chars` will keep individual characters in the json output
 
 The output will be a json list, with each item in the list corresponding to a single page in the input pdf (in order).  Each page will include the following keys:
 
@@ -84,7 +85,7 @@ import pypdfium2 as pdfium
 from pdftext.extraction import dictionary_output
 
 pdf = pdfium.PdfDocument(PDF_PATH)
-text = dictionary_output(pdf, sort=False, page_range=[1,2,3]) # Optional arguments explained above
+text = dictionary_output(pdf, sort=False, page_range=[1,2,3], keep_chars=False) # Optional arguments explained above
 ```
 
 If you want more customization, check out the `pdftext.extraction._get_pages` function for a starting point to dig deeper.  pdftext is a pretty thin wrapper around [pypdfium2](https://pypdfium2.readthedocs.io/en/stable/), so you might want to look at the documentation for that as well.
