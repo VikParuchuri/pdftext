@@ -8,7 +8,6 @@ class Settings(BaseSettings):
     MODEL_PATH: str = os.path.join(BASE_PATH, "models", "dt.joblib")
 
     # Fonts
-    FONT_BUFFER_SIZE: int = 1024 # How many characters to buffer when reading a font name
     FONTNAME_SAMPLE_FREQ: int = 10
 
     # Inference

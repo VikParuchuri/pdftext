@@ -133,7 +133,7 @@ def infer_single_page(text_chars, block_threshold=settings.BLOCK_THRESHOLD):
                 span = update_span(line, span)
                 line = update_line(block, line)
                 block = update_block(blocks, block)
-            elif prev_char["char"] in LINE_BREAKS and prediction_probs[1] >= .5: # Look for newline character as a forcing signal for a new line
+            elif prev_char["char"] in LINE_BREAKS: # Look for newline character as a forcing signal for a new line
                 span = update_span(line, span)
                 line = update_line(block, line)
             elif prev_font_info != font_info:

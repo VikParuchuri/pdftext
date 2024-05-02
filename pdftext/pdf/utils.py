@@ -42,8 +42,7 @@ def get_fontname(textpage, char_index):
     # Re-interpret the type from char to unsigned short as required by the function
     buffer_ptr = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_ushort))
     flag_buffer = ctypes.c_int()
-    flag_ptr = ctypes.pointer(flag_buffer)
-    font_info = pdfium_c.FPDFText_GetFontInfo(textpage, char_index, buffer_ptr, n_bytes, flag_ptr)
+    font_info = pdfium_c.FPDFText_GetFontInfo(textpage, char_index, buffer_ptr, n_bytes, flag_buffer)
     if font_info == 0:
         return None, None
     try:
