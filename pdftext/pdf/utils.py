@@ -37,7 +37,7 @@ def unnormalize_bbox(bbox, page_width, page_height):
 
 
 def get_fontname(textpage, char_index):
-    n_bytes = settings.FONT_BUFFER_SIZE
+    n_bytes = pdfium_c.FPDFText_GetFontInfo(textpage, char_index, None, 0, None)
     buffer = ctypes.create_string_buffer(n_bytes)
     # Re-interpret the type from char to unsigned short as required by the function
     buffer_ptr = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_ushort))
