@@ -9,15 +9,13 @@ from pdftext.pdf.utils import get_fontname, pdfium_page_bbox_to_device_bbox, pag
 from pdftext.settings import settings
 
 
-def update_previous_fonts(text_chars: Dict, i: int, fontname: str, fontflags: int, prev_fontname: str, text_page, fontname_sample_freq: int):
-    min_update = max(0, i - fontname_sample_freq + 1) # Minimum index to update
-    regather_font_info = fontname != prev_fontname
-    for j in range(min_update, i): # Goes from min_update to i - 1
-        if regather_font_info:
-            fontname, fontflags = get_fontname(text_page, j)
+def update_previous_fonts(text_chars: Dict, i: int, prev_fontname: str, prev_fontflags: int, text_page, fontname_sample_freq: int):
+    min_update = max(0, i - fontname_sample_freq) # Minimum index to update
+    for j in range(i-1, min_update, -1): # Goes from i to min_update
+        fontname, fontflags = get_fontname(text_page, j)
 
         # If we hit the region with the previous fontname, we can bail out
-        if fontname == prev_fontname:
+        if fontname == prev_fontname and fontflags == prev_fontflags:
             break
         text_chars["chars"][j]["font"]["name"] = fontname
         text_chars["chars"][j]["font"]["flags"] = fontflags
@@ -70,8 +68,10 @@ def get_pdfium_chars(pdf, fontname_sample_freq=settings.FONTNAME_SAMPLE_FREQ, pa
             fontweight = round(pdfium_c.FPDFText_GetFontWeight(text_page, i), 1)
             if fontname is None or i % fontname_sample_freq == 0:
                 prev_fontname = fontname
+                prev_fontflags = fontflags
                 fontname, fontflags = get_fontname(text_page, i)
-                update_previous_fonts(text_chars, i, fontname, fontflags, prev_fontname, text_page, fontname_sample_freq)
+                if (fontname != prev_fontname or fontflags != prev_fontflags) and i > 0:
+                    update_previous_fonts(text_chars, i, prev_fontname, prev_fontflags, text_page, fontname_sample_freq)
 
             rotation = pdfium_c.FPDFText_GetCharAngle(text_page, i)
             rotation = rotation * 180 / math.pi # convert from radians to degrees

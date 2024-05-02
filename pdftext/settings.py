@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     MODEL_PATH: str = os.path.join(BASE_PATH, "models", "dt.joblib")
 
     # Fonts
-    FONTNAME_SAMPLE_FREQ: int = 10
+    FONTNAME_SAMPLE_FREQ: int = 4
 
     # Inference
     BLOCK_THRESHOLD: float = 0.8 # Confidence threshold for block detection
