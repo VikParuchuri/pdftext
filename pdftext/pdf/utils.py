@@ -62,13 +62,11 @@ def page_to_device(page, x, y, page_width, page_height, page_rotation: int):
         page_rotation = 3
     else:
         page_rotation = 0
-    device_x = ctypes.c_int()
-    device_y = ctypes.c_int()
-    device_x_ptr = ctypes.pointer(device_x)
-    device_y_ptr = ctypes.pointer(device_y)
     width = math.ceil(page_width)
     height = math.ceil(page_height)
-    pdfium_c.FPDF_PageToDevice(page, 0, 0, width, height, page_rotation, x, y, device_x_ptr, device_y_ptr)
+    device_x = ctypes.c_int()
+    device_y = ctypes.c_int()
+    pdfium_c.FPDF_PageToDevice(page, 0, 0, width, height, page_rotation, x, y, device_x, device_y)
     x = device_x.value
     y = device_y.value
     return x, y
