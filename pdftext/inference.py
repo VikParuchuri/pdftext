@@ -128,7 +128,9 @@ def infer_single_page(text_chars, block_threshold=settings.BLOCK_THRESHOLD):
             prediction_probs = yield training_row
             # First item is probability of same line/block, second is probability of new line, third is probability of new block
             if prediction_probs[0] >= .5:
-                pass
+                # Ensure we update spans properly for font info when predicting no new line
+                if prev_font_info != font_info:
+                    span = update_span(line, span)
             elif prediction_probs[2] > block_threshold:
                 span = update_span(line, span)
                 line = update_line(block, line)
