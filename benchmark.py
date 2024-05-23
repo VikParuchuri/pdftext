@@ -50,9 +50,8 @@ def pdfplumber_inference(pdf_path):
     return pages
 
 
-def pdftext_inference(pdf_path, model):
-    pdf = pdfium.PdfDocument(pdf_path)
-    return paginated_plain_text_output(pdf, model=model)
+def pdftext_inference(pdf_path, model=None, workers=None):
+    return paginated_plain_text_output(pdf_path, model=model, workers=workers)
 
 
 def compare_docs(doc1: str, doc2: str):
@@ -64,6 +63,7 @@ def main():
     parser.add_argument("--result_path", type=str, help="Path to the output text file, defaults to stdout", default=None)
     parser.add_argument("--max", type=int, help="Maximum number of pages to process.", default=None)
     parser.add_argument("--pdftext_only", action="store_true", help="Only run pdftext inference", default=False)
+    parser.add_argument("--pdftext_workers", type=int, help="Number of workers to use for pdftext inference", default=None)
     args = parser.parse_args()
 
     split = "train"
@@ -88,7 +88,7 @@ def main():
             f.seek(0)
             pdf_path = f.name
 
-            pdftext_inference_model = partial(pdftext_inference, model=model)
+            pdftext_inference_model = partial(pdftext_inference, model=model, workers=args.pdftext_workers)
             inference_funcs = [pymupdf_inference, pdftext_inference_model, pdfplumber_inference]
             for tool, inference_func in zip(times_tools, inference_funcs):
                 start = time.time()

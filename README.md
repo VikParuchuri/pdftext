@@ -27,6 +27,7 @@ pdftext PDF_PATH --out_path output.txt
 - `--sort` will attempt to sort in reading order if specified.
 - `--keep_hyphens` will keep hyphens in the output (they will be stripped and words joined otherwise)
 - `--pages` will specify pages (comma separated) to extract
+- `--workers` specifies the number of parallel workers to use
 
 ## JSON
 
@@ -42,6 +43,7 @@ pdftext PDF_PATH --out_path output.txt --json
 - `--sort` will attempt to sort in reading order if specified.
 - `--pages` will specify pages (comma separated) to extract
 - `--keep_chars` will keep individual characters in the json output
+- `--workers` specifies the number of parallel workers to use
 
 The output will be a json list, with each item in the list corresponding to a single page in the input pdf (in order).  Each page will include the following keys:
 
@@ -71,21 +73,17 @@ If the pdf is rotated, the bboxes will be relative to the rotated page (they're 
 Extract plain text:
 
 ```python
-import pypdfium2 as pdfium
 from pdftext.extraction import plain_text_output
 
-pdf = pdfium.PdfDocument(PDF_PATH)
-text = plain_text_output(pdf, sort=False, hyphens=False, page_range=[1,2,3]) # Optional arguments explained above
+text = plain_text_output(PDF_PATH, sort=False, hyphens=False, page_range=[1,2,3]) # Optional arguments explained above
 ```
 
 Extract structured blocks and lines:
 
 ```python
-import pypdfium2 as pdfium
 from pdftext.extraction import dictionary_output
 
-pdf = pdfium.PdfDocument(PDF_PATH)
-text = dictionary_output(pdf, sort=False, page_range=[1,2,3], keep_chars=False) # Optional arguments explained above
+text = dictionary_output(PDF_PATH, sort=False, page_range=[1,2,3], keep_chars=False) # Optional arguments explained above
 ```
 
 If you want more customization, check out the `pdftext.extraction._get_pages` function for a starting point to dig deeper.  pdftext is a pretty thin wrapper around [pypdfium2](https://pypdfium2.readthedocs.io/en/stable/), so you might want to look at the documentation for that as well.
