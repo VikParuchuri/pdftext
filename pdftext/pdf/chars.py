@@ -1,15 +1,13 @@
-import decimal
 import math
-from typing import Dict
+from typing import Dict, List
 
-import pypdfium2 as pdfium
 import pypdfium2.raw as pdfium_c
 
 from pdftext.pdf.utils import get_fontname, pdfium_page_bbox_to_device_bbox, page_bbox_to_device_bbox
 from pdftext.settings import settings
 
 
-def update_previous_fonts(text_chars: Dict, i: int, prev_fontname: str, prev_fontflags: int, text_page, fontname_sample_freq: int):
+def update_previous_fonts(char_infos: List, i: int, prev_fontname: str, prev_fontflags: int, text_page, fontname_sample_freq: int):
     min_update = max(0, i - fontname_sample_freq) # Minimum index to update
     for j in range(i-1, min_update, -1): # Goes from i to min_update
         fontname, fontflags = get_fontname(text_page, j)
@@ -17,8 +15,8 @@ def update_previous_fonts(text_chars: Dict, i: int, prev_fontname: str, prev_fon
         # If we hit the region with the previous fontname, we can bail out
         if fontname == prev_fontname and fontflags == prev_fontflags:
             break
-        text_chars["chars"][j]["font"]["name"] = fontname
-        text_chars["chars"][j]["font"]["flags"] = fontflags
+        char_infos[j]["font"]["name"] = fontname
+        char_infos[j]["font"]["flags"] = fontflags
 
 
 def get_pdfium_chars(pdf, page_range, fontname_sample_freq=settings.FONTNAME_SAMPLE_FREQ):
@@ -42,13 +40,9 @@ def get_pdfium_chars(pdf, page_range, fontname_sample_freq=settings.FONTNAME_SAM
         if page_rotation == 90 or page_rotation == 270:
             page_width, page_height = page_height, page_width
 
-        bl_origin = all([
-            mediabox[0] == 0,
-            mediabox[1] == 0
-        ])
+        bl_origin = (mediabox[0] == 0 and mediabox[1] == 0)
 
         text_chars = {
-            "chars": [],
             "page": page_idx,
             "rotation": page_rotation,
             "bbox": bbox,
@@ -59,6 +53,8 @@ def get_pdfium_chars(pdf, page_range, fontname_sample_freq=settings.FONTNAME_SAM
         fontname = None
         fontflags = None
         total_chars = text_page.count_chars()
+        char_infos = []
+
         for i in range(total_chars):
             char = pdfium_c.FPDFText_GetUnicode(text_page, i)
             char = chr(char)
@@ -69,7 +65,7 @@ def get_pdfium_chars(pdf, page_range, fontname_sample_freq=settings.FONTNAME_SAM
                 prev_fontflags = fontflags
                 fontname, fontflags = get_fontname(text_page, i)
                 if (fontname != prev_fontname or fontflags != prev_fontflags) and i > 0:
-                    update_previous_fonts(text_chars, i, prev_fontname, prev_fontflags, text_page, fontname_sample_freq)
+                    update_previous_fonts(char_infos, i, prev_fontname, prev_fontflags, text_page, fontname_sample_freq)
 
             rotation = pdfium_c.FPDFText_GetCharAngle(text_page, i)
             rotation = rotation * 180 / math.pi # convert from radians to degrees
@@ -88,8 +84,9 @@ def get_pdfium_chars(pdf, page_range, fontname_sample_freq=settings.FONTNAME_SAM
                 "bbox": device_coords,
                 "char_idx": i
             }
-            text_chars["chars"].append(char_info)
+            char_infos.append(char_info)
 
+        text_chars["chars"] = char_infos
         text_chars["total_chars"] = total_chars
         blocks.append(text_chars)
     return blocks

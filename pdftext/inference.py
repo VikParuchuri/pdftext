@@ -9,14 +9,14 @@ from pdftext.settings import settings
 def update_current(current, new_char):
     bbox = new_char["bbox"]
     if "bbox" not in current:
-        current_bbox = bbox.copy()
-        current["bbox"] = current_bbox
+        current["bbox"] = bbox.copy()
     else:
         current_bbox = current["bbox"]
         current_bbox[0] = min(bbox[0], current_bbox[0])
         current_bbox[1] = min(bbox[1], current_bbox[1])
         current_bbox[2] = max(bbox[2], current_bbox[2])
         current_bbox[3] = max(bbox[3], current_bbox[3])
+    current_bbox = current["bbox"]
     current["center_x"] = (current_bbox[0] + current_bbox[2]) / 2
     current["center_y"] = (current_bbox[1] + current_bbox[3]) / 2
 
@@ -25,8 +25,13 @@ def create_training_row(char_info, prev_char, currblock, currline):
     char = char_info["char"]
 
     # Store variables used multiple times
-    char_x1, char_y1, char_x2, char_y2 = char_info["bbox"]
-    prev_x1, prev_y1, prev_x2, prev_y2 = prev_char["bbox"]
+    char_bbox = char_info["bbox"]
+    prev_bbox = prev_char["bbox"]
+    currblock_bbox = currblock["bbox"]
+    currline_bbox = currline["bbox"]
+
+    char_x1, char_y1, char_x2, char_y2 = char_bbox
+    prev_x1, prev_y1, prev_x2, prev_y2 = prev_bbox
     char_center_x = (char_x2 + char_x1) / 2
     char_center_y = (char_y2 + char_y1) / 2
     x_gap = char_x1 - prev_x2
@@ -34,14 +39,13 @@ def create_training_row(char_info, prev_char, currblock, currline):
 
     char_font = char_info["font"]
     prev_font = prev_char["font"]
-    font_match = all(
-        [char_font[key] == prev_font[key] for key in ["name", "size", "weight", "flags"]] +
-        [char_info["rotation"] == prev_char["rotation"]]
-    )
-    is_space = any([
-        char in SPACES,
-        char in TABS,
-    ])
+    font_match = (char_font["name"] == prev_font["name"] and
+                  char_font["size"] == prev_font["size"] and
+                  char_font["weight"] == prev_font["weight"] and
+                  char_font["flags"] == prev_font["flags"] and
+                  char_info["rotation"] == prev_char["rotation"])
+
+    is_space = char in SPACES or char in TABS
 
     training_row = {
         "is_newline": char in LINE_BREAKS,
@@ -53,42 +57,49 @@ def create_training_row(char_info, prev_char, currblock, currline):
         "y_outer_gap": char_y2 - prev_y1,
         "line_x_center_gap": char_center_x - currline["center_x"],
         "line_y_center_gap": char_center_y - currline["center_y"],
-        "line_x_gap": char_x1 - currline["bbox"][2],
-        "line_y_gap": char_y1 - currline["bbox"][3],
-        "line_x_start_gap": char_x1 - currline["bbox"][0],
-        "line_y_start_gap": char_y1 - currline["bbox"][1],
+        "line_x_gap": char_x1 - currline_bbox[2],
+        "line_y_gap": char_y1 - currline_bbox[3],
+        "line_x_start_gap": char_x1 - currline_bbox[0],
+        "line_y_start_gap": char_y1 - currline_bbox[1],
         "block_x_center_gap": char_center_x - currblock["center_x"],
         "block_y_center_gap": char_center_y - currblock["center_y"],
-        "block_x_gap": char_x1 - currblock["bbox"][2],
-        "block_y_gap": char_y1 - currblock["bbox"][3],
-        "block_x_start_gap": char_x1 - currblock["bbox"][0],
-        "block_y_start_gap": char_y1 - currblock["bbox"][1]
+        "block_x_gap": char_x1 - currblock_bbox[2],
+        "block_y_gap": char_y1 - currblock_bbox[3],
+        "block_x_start_gap": char_x1 - currblock_bbox[0],
+        "block_y_start_gap": char_y1 - currblock_bbox[1]
     }
 
     return training_row
 
 
 def update_span(line, span):
-    if len(span["chars"]) > 0:
-        span["font"] = span["chars"][0]["font"]
-        span["rotation"] = span["chars"][0]["rotation"]
+    if span["chars"]:
+        first_char = span["chars"][0]
+        span["font"] = first_char["font"]
+        span["rotation"] = first_char["rotation"]
+
         char_bboxes = [char["bbox"] for char in span["chars"]]
-        span["bbox"] = [min([bbox[0] for bbox in char_bboxes]),
-                        min([bbox[1] for bbox in char_bboxes]),
-                        max([bbox[2] for bbox in char_bboxes]),
-                        max([bbox[3] for bbox in char_bboxes])]
-        span["text"] = "".join([char["char"] for char in span["chars"]])
-        span["char_start_idx"] = span["chars"][0]["char_idx"]
+        min_x, min_y, max_x, max_y = char_bboxes[0]
+
+        for bbox in char_bboxes[1:]:
+            min_x = min(min_x, bbox[0])
+            min_y = min(min_y, bbox[1])
+            max_x = max(max_x, bbox[2])
+            max_y = max(max_y, bbox[3])
+
+        span["bbox"] = [min_x, min_y, max_x, max_y]
+        span["text"] = "".join(char["char"] for char in span["chars"])
+        span["char_start_idx"] = first_char["char_idx"]
         span["char_end_idx"] = span["chars"][-1]["char_idx"]
 
-    # Remove unneeded keys from the characters
-    for char in span["chars"]:
-        del_keys = [k for k in list(char.keys()) if k not in ["char", "bbox"]]
-        for key in del_keys:
-            del char[key]
-    line["spans"].append(span)
-    span = {"chars": []}
-    return span
+        # Remove unneeded keys from the characters
+        for char in span["chars"]:
+            for key in list(char.keys()):
+                if key not in ["char", "bbox"]:
+                    del char[key]
+
+        line["spans"].append(span)
+    return {"chars": []}
 
 
 def update_line(block, line):
@@ -118,8 +129,10 @@ def infer_single_page(text_chars, block_threshold=settings.BLOCK_THRESHOLD):
     block = {"lines": []}
     line = {"spans": []}
     span = {"chars": []}
-    for i, char_info in enumerate(text_chars["chars"]):
-        font_info = f"{char_info['font']['name']}_{char_info['font']['size']}_{char_info['font']['weight']}_{char_info['font']['flags']}_{char_info['rotation']}"
+
+    for char_info in text_chars["chars"]:
+        font = char_info['font']
+        font_info = f"{font['name']}_{font['size']}_{font['weight']}_{font['flags']}_{char_info['rotation']}"
         if prev_char:
             training_row = create_training_row(char_info, prev_char, block, line)
             sorted_keys = sorted(training_row.keys())
@@ -147,11 +160,12 @@ def infer_single_page(text_chars, block_threshold=settings.BLOCK_THRESHOLD):
 
         prev_char = char_info
         prev_font_info = font_info
-    if len(span["chars"]) > 0:
+
+    if span["chars"]:
         update_span(line, span)
-    if len(line["spans"]) > 0:
+    if line["spans"]:
         update_line(block, line)
-    if len(block["lines"]) > 0:
+    if block["lines"]:
         update_block(blocks, block)
 
     return blocks

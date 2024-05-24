@@ -61,30 +61,30 @@ def paginated_plain_text_output(pdf_path, sort=False, model=None, hyphens=False,
     return text
 
 
+def _process_span(span, page_width, page_height, keep_chars):
+    span["bbox"] = unnormalize_bbox(span["bbox"], page_width, page_height)
+    span["text"] = handle_hyphens(postprocess_text(span["text"]), keep_hyphens=True)
+    if not keep_chars:
+        del span["chars"]
+    else:
+        for char in span["chars"]:
+            char["bbox"] = unnormalize_bbox(char["bbox"], page_width, page_height)
+
+
 def dictionary_output(pdf_path, sort=False, model=None, page_range=None, keep_chars=False, workers=None):
     pages = _get_pages(pdf_path, model, page_range, workers=workers)
     for page in pages:
+        page_width, page_height = page["width"], page["height"]
         for block in page["blocks"]:
-            bad_keys = [key for key in block.keys() if key not in ["lines", "bbox"]]
-            for key in bad_keys:
-                del block[key]
+            block = {k: v for k, v in block.items() if k in ["lines", "bbox"]}
+            block["bbox"] = unnormalize_bbox(block["bbox"], page_width, page_height)
             for line in block["lines"]:
-                bad_keys = [key for key in line.keys() if key not in ["bbox", "spans"]]
-                for key in bad_keys:
-                    del line[key]
+                line = {k: v for k, v in line.items() if k in ["bbox", "spans"]}
+                line["bbox"] = unnormalize_bbox(line["bbox"], page_width, page_height)
                 for span in line["spans"]:
-                    span["bbox"] = unnormalize_bbox(span["bbox"], page["width"], page["height"])
-                    span["text"] = postprocess_text(span["text"])
-                    span["text"] = handle_hyphens(span["text"], keep_hyphens=True)
+                    _process_span(span, page_width, page_height, keep_chars)
 
-                    if not keep_chars:
-                        del span["chars"]
-                    else:
-                        for char in span["chars"]:
-                            char["bbox"] = unnormalize_bbox(char["bbox"], page["width"], page["height"])
-
-                line["bbox"] = unnormalize_bbox(line["bbox"], page["width"], page["height"])
-            block["bbox"] = unnormalize_bbox(block["bbox"], page["width"], page["height"])
         if sort:
             page["blocks"] = sort_blocks(page["blocks"])
+
     return pages

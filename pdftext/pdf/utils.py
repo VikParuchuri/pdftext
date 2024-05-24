@@ -2,37 +2,17 @@ import pypdfium2.raw as pdfium_c
 import ctypes
 import math
 
-from pdftext.settings import settings
-
 LINE_BREAKS = ["\n", "\u000D", "\u000A"]
 TABS = ["\t", "\u0009", "\x09"]
 SPACES = [" ", "\ufffe", "\uFEFF", "\xa0"]
 WHITESPACE_CHARS = ["\n", "\r", "\f", "\t", " "]
 
 
-def char_count(textpage, *rect):
-    args = (textpage, *rect)
-    n_chars = pdfium_c.FPDFText_GetBoundedText(*args, None, 0)
-    if n_chars <= 0:
-        return 0
-    return n_chars
-
-
-def normalize_bbox(bbox, page_bound):
-    x1, y1, x2, y2 = bbox
-    x1 = x1 / page_bound[2]
-    y1 = y1 / page_bound[3]
-    x2 = x2 / page_bound[2]
-    y2 = y2 / page_bound[3]
-    return x1, y1, x2, y2
-
-
 def unnormalize_bbox(bbox, page_width, page_height):
-    x1, y1, x2, y2 = bbox
-    x1 = round(x1 * page_width, 1)
-    y1 = round(y1 * page_height, 1)
-    x2 = round(x2 * page_width, 1)
-    y2 = round(y2 * page_height, 1)
+    x1 = round(bbox[0] * page_width, 1)
+    y1 = round(bbox[1] * page_height, 1)
+    x2 = round(bbox[2] * page_width, 1)
+    y2 = round(bbox[3] * page_height, 1)
     return x1, y1, x2, y2
 
 
