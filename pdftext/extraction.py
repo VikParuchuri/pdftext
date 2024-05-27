@@ -76,10 +76,14 @@ def dictionary_output(pdf_path, sort=False, model=None, page_range=None, keep_ch
     for page in pages:
         page_width, page_height = page["width"], page["height"]
         for block in page["blocks"]:
-            block = {k: v for k, v in block.items() if k in ["lines", "bbox"]}
+            for k in list(block.keys()):
+                if k not in ["lines", "bbox"]:
+                    del block[k]
             block["bbox"] = unnormalize_bbox(block["bbox"], page_width, page_height)
             for line in block["lines"]:
-                line = {k: v for k, v in line.items() if k in ["bbox", "spans"]}
+                for k in list(line.keys()):
+                    if k not in ["spans", "bbox"]:
+                        del line[k]
                 line["bbox"] = unnormalize_bbox(line["bbox"], page_width, page_height)
                 for span in line["spans"]:
                     _process_span(span, page_width, page_height, keep_chars)
