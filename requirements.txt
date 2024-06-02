@@ -1,0 +1,7 @@
+joblib==1.4.0
+numpy==1.26.4
+pydantic==2.7.1
+pydantic-settings==2.2.1
+pypdfium2==4.29.0
+scikit-learn==1.4.2
+

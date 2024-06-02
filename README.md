@@ -88,6 +88,30 @@ text = dictionary_output(PDF_PATH, sort=False, page_range=[1,2,3], keep_chars=Fa
 
 If you want more customization, check out the `pdftext.extraction._get_pages` function for a starting point to dig deeper.  pdftext is a pretty thin wrapper around [pypdfium2](https://pypdfium2.readthedocs.io/en/stable/), so you might want to look at the documentation for that as well.
 
+# Run on Docker
+Clone a project
+```
+git clone repository
+
+```
+
+Build a docker image
+```
+cd pdftext
+docker build -t pdftext .
+
+```
+
+Running with docker
+```
+# write out a text file
+docker run pdftext PDF_PATH --out_path output.txt
+
+# write out a json file
+docker run pdftext PDF_PATH --out_path output.txt --json
+
+```
+
 # Benchmarks
 
 I benchmarked extraction speed and accuracy of [pymupdf](https://pymupdf.readthedocs.io/en/latest/), [pdfplumber](https://github.com/jsvine/pdfplumber), and pdftext.  I chose pymupdf because it extracts blocks and lines.  Pdfplumber extracts words and bboxes.  I did not benchmark pypdf, even though it is a great library, because it doesn't provide individual character/line/block and bbox information.
