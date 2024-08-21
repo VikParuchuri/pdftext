@@ -12,12 +12,14 @@ from pdftext.postprocessing import merge_text, sort_blocks, postprocess_text, ha
 from pdftext.settings import settings
 
 
-def process_pdf(pdf):
+def _process_pdf(pdf):
     if isinstance(pdf, str):
         pdf = pdfium.PdfDocument(pdf)
     else:
         if not isinstance(pdf, pdfium.PdfDocument):
             raise TypeError("pdf must be a file path string or a PdfDocument object")
+        
+    pdf.init_forms()
         
     return pdf
 
@@ -57,7 +59,7 @@ def _get_pages(pdf_doc, model=None, page_range=None, workers=None):
 
 
 def plain_text_output(pdf: str | pdfium.PdfDocument, sort=False, model=None, hyphens=False, page_range=None, workers=None) -> str:
-    pdf_doc = process_pdf(pdf)
+    pdf_doc = _process_pdf(pdf)
     text = paginated_plain_text_output(pdf_doc, sort=sort, model=model, hyphens=hyphens, page_range=page_range, workers=workers)
     return "\n".join(text)
 
@@ -81,7 +83,7 @@ def _process_span(span, page_width, page_height, keep_chars):
 
 
 def dictionary_output(pdf: str | pdfium.PdfDocument, sort=False, model=None, page_range=None, keep_chars=False, workers=None):
-    pdf_doc = process_pdf(pdf)
+    pdf_doc = _process_pdf(pdf)
     pages = _get_pages(pdf_doc, model, page_range, workers=workers)
     for page in pages:
         page_width, page_height = page["width"], page["height"]

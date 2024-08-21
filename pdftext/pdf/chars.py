@@ -24,6 +24,11 @@ def get_pdfium_chars(pdf, page_range, fontname_sample_freq=settings.FONTNAME_SAM
 
     for page_idx in page_range:
         page = pdf.get_page(page_idx)
+        # Flatten form fields and annotations into page contents.
+        page._flatten(flag=pdfium_c.FLAT_NORMALDISPLAY)
+        # Flattening invalidates existing handles to the page.
+        # It is necessary to re-initialize the page handle after flattening.
+        page = pdf.get_page(page_idx)
         text_page = page.get_textpage()
         mediabox = page.get_mediabox()
         page_rotation = page.get_rotation()
