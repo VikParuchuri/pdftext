@@ -18,9 +18,10 @@ def _process_pdf(pdf):
     else:
         if not isinstance(pdf, pdfium.PdfDocument):
             raise TypeError("pdf must be a file path string or a PdfDocument object")
-        
+
+    # Must be called on the parent pdf, before the page was retrieved 
     pdf.init_forms()
-        
+    
     return pdf
 
 
