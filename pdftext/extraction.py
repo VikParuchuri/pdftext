@@ -12,15 +12,16 @@ from pdftext.postprocessing import merge_text, sort_blocks, postprocess_text, ha
 from pdftext.settings import settings
 
 
-def _process_pdf(pdf):
+def _process_pdf(pdf, flatten_pdf):
     if isinstance(pdf, str):
         pdf = pdfium.PdfDocument(pdf)
     else:
         if not isinstance(pdf, pdfium.PdfDocument):
             raise TypeError("pdf must be a file path string or a PdfDocument object")
 
-    # Must be called on the parent pdf, before the page was retrieved 
-    pdf.init_forms()
+    # Must be called on the parent pdf, before the page was retrieved
+    if flatten_pdf:
+        pdf.init_forms()
     
     return pdf
 
@@ -31,7 +32,7 @@ def _get_page_range(pdf_doc, model, page_range):
     return pages
 
 
-def _get_pages(pdf_doc, model=None, page_range=None, workers=None):
+def _get_pages(pdf_doc, model=None, page_range=None, flatten_pdf=False, workers=None):
     if model is None:
         model = get_model()
 
@@ -42,7 +43,7 @@ def _get_pages(pdf_doc, model=None, page_range=None, workers=None):
         workers = min(workers, len(page_range) // settings.WORKER_PAGE_THRESHOLD) # It's inefficient to have too many workers, since we batch in inference
 
     if workers is None or workers <= 1:
-        text_chars = get_pdfium_chars(pdf_doc, page_range)
+        text_chars = get_pdfium_chars(pdf_doc, page_range, flatten_pdf)
         return inference(text_chars, model)
 
     func = partial(_get_page_range, pdf_doc, model)
@@ -59,14 +60,14 @@ def _get_pages(pdf_doc, model=None, page_range=None, workers=None):
     return ordered_pages
 
 
-def plain_text_output(pdf: str | pdfium.PdfDocument, sort=False, model=None, hyphens=False, page_range=None, workers=None) -> str:
-    pdf_doc = _process_pdf(pdf)
-    text = paginated_plain_text_output(pdf_doc, sort=sort, model=model, hyphens=hyphens, page_range=page_range, workers=workers)
+def plain_text_output(pdf: str | pdfium.PdfDocument, sort=False, model=None, hyphens=False, page_range=None, flatten_pdf=False, workers=None) -> str:
+    pdf_doc = _process_pdf(pdf, flatten_pdf)
+    text = paginated_plain_text_output(pdf_doc, sort=sort, model=model, hyphens=hyphens, page_range=page_range, flatten_pdf=flatten_pdf, workers=workers)
     return "\n".join(text)
 
 
-def paginated_plain_text_output(pdf_doc, sort=False, model=None, hyphens=False, page_range=None, workers=None) -> List[str]:
-    pages = _get_pages(pdf_doc, model, page_range, workers=workers)
+def paginated_plain_text_output(pdf_doc, sort=False, model=None, hyphens=False, page_range=None, flatten_pdf=False, workers=None) -> List[str]:
+    pages = _get_pages(pdf_doc, model, page_range, flatten_pdf, workers=workers)
     text = []
     for page in pages:
         text.append(merge_text(page, sort=sort, hyphens=hyphens).strip())
@@ -83,9 +84,9 @@ def _process_span(span, page_width, page_height, keep_chars):
             char["bbox"] = unnormalize_bbox(char["bbox"], page_width, page_height)
 
 
-def dictionary_output(pdf: str | pdfium.PdfDocument, sort=False, model=None, page_range=None, keep_chars=False, workers=None):
-    pdf_doc = _process_pdf(pdf)
-    pages = _get_pages(pdf_doc, model, page_range, workers=workers)
+def dictionary_output(pdf: str | pdfium.PdfDocument, sort=False, model=None, page_range=None, flatten_pdf=False, keep_chars=False, workers=None):
+    pdf_doc = _process_pdf(pdf, flatten_pdf)
+    pages = _get_pages(pdf_doc, model, page_range, flatten_pdf, workers=workers)
     for page in pages:
         page_width, page_height = page["width"], page["height"]
         for block in page["blocks"]:
