@@ -1,6 +1,6 @@
 from functools import partial
 from typing import List
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import math
 import pypdfium2 as pdfium
 
@@ -40,8 +40,12 @@ def _get_pages(pdf_path, model=None, page_range=None, workers=None):
     pages_per_worker = math.ceil(len(page_range) / workers)
     page_range_chunks = [page_range[i * pages_per_worker:(i + 1) * pages_per_worker] for i in range(workers)]
 
-    with ProcessPoolExecutor(max_workers=workers) as executor:
-        pages = list(executor.map(func, page_range_chunks))
+    try:
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            pages = list(executor.map(func, page_range_chunks))
+    except Exception:
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            pages = list(executor.map(func, page_range_chunks))
 
     ordered_pages = [page for sublist in pages for page in sublist]
 
