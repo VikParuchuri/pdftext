@@ -19,11 +19,20 @@ def update_previous_fonts(char_infos: List, i: int, prev_fontname: str, prev_fon
         char_infos[j]["font"]["flags"] = fontflags
 
 
-def get_pdfium_chars(pdf, page_range, fontname_sample_freq=settings.FONTNAME_SAMPLE_FREQ):
+def get_pdfium_chars(pdf, page_range, flatten_pdf, fontname_sample_freq=settings.FONTNAME_SAMPLE_FREQ):
     blocks = []
 
     for page_idx in page_range:
         page = pdf.get_page(page_idx)
+
+        if flatten_pdf:
+            # Flatten form fields and annotations into page contents.
+            page._flatten(flag=pdfium_c.FLAT_NORMALDISPLAY)
+
+            # Flattening invalidates existing handles to the page.
+            # It is necessary to re-initialize the page handle after flattening.
+            page = pdf.get_page(page_idx)
+        
         text_page = page.get_textpage()
         mediabox = page.get_mediabox()
         page_rotation = page.get_rotation()

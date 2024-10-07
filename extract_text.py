@@ -13,6 +13,7 @@ def main():
     parser.add_argument("--sort", action="store_true", help="Attempt to sort the text by reading order", default=False)
     parser.add_argument("--keep_hyphens", action="store_true", help="Keep hyphens in words", default=False)
     parser.add_argument("--pages", type=str, help="Comma separated pages to extract, like 1,2,3", default=None)
+    parser.add_argument("--flatten_pdf", action="store_true", help="Flatten form fields and annotations into page contents", default=False)
     parser.add_argument("--keep_chars", action="store_true", help="Keep character level information", default=False)
     parser.add_argument("--workers", type=int, help="Number of workers to use for parallel processing", default=None)
     args = parser.parse_args()
@@ -24,10 +25,10 @@ def main():
         assert all(p <= len(pdf_doc) for p in pages), "Invalid page number(s) provided"
 
     if args.json:
-        text = dictionary_output(args.pdf_path, sort=args.sort, page_range=pages, keep_chars=args.keep_chars, workers=args.workers)
+        text = dictionary_output(args.pdf_path, sort=args.sort, page_range=pages, flatten_pdf=args.flatten_pdf, keep_chars=args.keep_chars, workers=args.workers)
         text = json.dumps(text)
     else:
-        text = plain_text_output(args.pdf_path, sort=args.sort, hyphens=args.keep_hyphens, page_range=pages, workers=args.workers)
+        text = plain_text_output(args.pdf_path, sort=args.sort, hyphens=args.keep_hyphens, page_range=pages, flatten_pdf=args.flatten_pdf, workers=args.workers)
 
     if args.out_path is None:
         print(text)
