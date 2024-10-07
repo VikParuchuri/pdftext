@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pdftext"
-version = "0.3.10"
+version = "0.3.11"
 description = "Extract structured text from pdfs quickly"
 authors = ["Vik Paruchuri <vik.paruchuri@gmail.com>"]
 license = "Apache-2.0"
@@ -12,15 +12,16 @@ packages = [
 ]
 include = [
     "extract_text.py",
-    "models/dt.joblib"
+    "models/dt.joblib",
+    "models/dt.onnx"
 ]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13,!=3.9.7"
 pypdfium2 = "^4.29.0"
-scikit-learn = "^1.4.2"
 pydantic = "^2.7.1"
 pydantic-settings = "^2.2.1"
+onnxruntime = "^1.19.2"
 
 [tool.poetry.group.dev.dependencies]
 pymupdf = "^1.24.2"

@@ -28,6 +28,7 @@ pdftext PDF_PATH --out_path output.txt
 - `--keep_hyphens` will keep hyphens in the output (they will be stripped and words joined otherwise)
 - `--pages` will specify pages (comma separated) to extract
 - `--workers` specifies the number of parallel workers to use
+- `--flatten_pdf` merges form fields into the PDF
 
 ## JSON
 
@@ -44,6 +45,7 @@ pdftext PDF_PATH --out_path output.txt --json
 - `--pages` will specify pages (comma separated) to extract
 - `--keep_chars` will keep individual characters in the json output
 - `--workers` specifies the number of parallel workers to use
+- `--flatten_pdf` merges form fields into the PDF
 
 The output will be a json list, with each item in the list corresponding to a single page in the input pdf (in order).  Each page will include the following keys:
 

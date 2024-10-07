@@ -1,6 +1,4 @@
-from itertools import chain
-
-import sklearn
+import numpy as np
 
 from pdftext.pdf.utils import LINE_BREAKS, TABS, SPACES
 from pdftext.settings import settings
@@ -47,27 +45,27 @@ def create_training_row(char_info, prev_char, currblock, currline):
 
     is_space = char in SPACES or char in TABS
 
-    training_row = {
-        "is_newline": char in LINE_BREAKS,
-        "is_space": is_space,
-        "x_gap": x_gap,
-        "y_gap": y_gap,
-        "font_match": font_match,
-        "x_outer_gap": char_x2 - prev_x1,
-        "y_outer_gap": char_y2 - prev_y1,
-        "line_x_center_gap": char_center_x - currline["center_x"],
-        "line_y_center_gap": char_center_y - currline["center_y"],
-        "line_x_gap": char_x1 - currline_bbox[2],
-        "line_y_gap": char_y1 - currline_bbox[3],
-        "line_x_start_gap": char_x1 - currline_bbox[0],
-        "line_y_start_gap": char_y1 - currline_bbox[1],
-        "block_x_center_gap": char_center_x - currblock["center_x"],
-        "block_y_center_gap": char_center_y - currblock["center_y"],
-        "block_x_gap": char_x1 - currblock_bbox[2],
-        "block_y_gap": char_y1 - currblock_bbox[3],
-        "block_x_start_gap": char_x1 - currblock_bbox[0],
-        "block_y_start_gap": char_y1 - currblock_bbox[1]
-    }
+    return np.array([
+        char_center_x - currblock["center_x"],
+        char_x1 - currblock_bbox[2],
+        char_x1 - currblock_bbox[0],
+        char_center_y - currblock["center_y"],
+        char_y1 - currblock_bbox[3],
+        char_y1 - currblock_bbox[1],
+        font_match,
+        char in LINE_BREAKS,
+        is_space,
+        char_center_x - currline["center_x"],
+        char_x1 - currline_bbox[2],
+        char_x1 - currline_bbox[0],
+        char_center_y - currline["center_y"],
+        char_y1 - currline_bbox[3],
+        char_y1 - currline_bbox[1],
+        x_gap,
+        char_x2 - prev_x1,
+        y_gap,
+        char_y2 - prev_y1
+    ], dtype=np.float32)
 
     return training_row
 
@@ -135,8 +133,6 @@ def infer_single_page(text_chars, block_threshold=settings.BLOCK_THRESHOLD):
         font_info = f"{font['name']}_{font['size']}_{font['weight']}_{font['flags']}_{char_info['rotation']}"
         if prev_char:
             training_row = create_training_row(char_info, prev_char, block, line)
-            sorted_keys = sorted(training_row.keys())
-            training_row = [training_row[key] for key in sorted_keys]
 
             prediction_probs = yield training_row
             # First item is probability of same line/block, second is probability of new line, third is probability of new block
@@ -175,6 +171,8 @@ def inference(text_chars, model):
     # Create generators and get first training row from each
     generators = [infer_single_page(text_page) for text_page in text_chars]
     next_prediction = {}
+    input_name = model.get_inputs()[0].name
+    output_name = model.get_outputs()[1].name
 
     page_blocks = {}
     while len(page_blocks) < len(generators):
@@ -199,10 +197,10 @@ def inference(text_chars, model):
 
         training_idxs = sorted(training_data.keys())
         training_rows = [training_data[idx] for idx in training_idxs]
+        training_rows = np.stack(training_rows, axis=0)
 
-        # Disable nan, etc, validation for a small speedup
-        with sklearn.config_context(assume_finite=True):
-            predictions = model.predict_proba(training_rows)
+        # Run inference
+        predictions = model.run([output_name], {input_name: training_rows})[0]
         for pred, page_idx in zip(predictions, training_idxs):
             next_prediction[page_idx] = pred
     sorted_keys = sorted(page_blocks.keys())

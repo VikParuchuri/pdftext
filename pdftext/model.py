@@ -1,7 +1,7 @@
-import joblib
 from pdftext.settings import settings
+import onnxruntime as rt
 
 
 def get_model(model_path=settings.MODEL_PATH):
-    model = joblib.load(model_path)
-    return model
+    sess = rt.InferenceSession(model_path)
+    return sess

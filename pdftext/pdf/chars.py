@@ -2,6 +2,7 @@ import math
 from typing import Dict, List
 
 import pypdfium2.raw as pdfium_c
+from pypdfium2 import PdfiumError
 
 from pdftext.pdf.utils import get_fontname, pdfium_page_bbox_to_device_bbox, page_bbox_to_device_bbox
 from pdftext.settings import settings
@@ -19,11 +20,26 @@ def update_previous_fonts(char_infos: List, i: int, prev_fontname: str, prev_fon
         char_infos[j]["font"]["flags"] = fontflags
 
 
-def get_pdfium_chars(pdf, page_range, fontname_sample_freq=settings.FONTNAME_SAMPLE_FREQ):
+def flatten(page, flag=pdfium_c.FLAT_NORMALDISPLAY):
+    rc = pdfium_c.FPDFPage_Flatten(page, flag)
+    if rc == pdfium_c.FLATTEN_FAIL:
+        raise PdfiumError("Failed to flatten annotations / form fields.")
+
+
+def get_pdfium_chars(pdf, page_range, flatten_pdf, fontname_sample_freq=settings.FONTNAME_SAMPLE_FREQ):
     blocks = []
 
     for page_idx in page_range:
         page = pdf.get_page(page_idx)
+
+        if flatten_pdf:
+            # Flatten form fields and annotations into page contents.
+            flatten(pdf, page)
+
+            # Flattening invalidates existing handles to the page.
+            # It is necessary to re-initialize the page handle after flattening.
+            page = pdf.get_page(page_idx)
+        
         text_page = page.get_textpage()
         mediabox = page.get_mediabox()
         page_rotation = page.get_rotation()
