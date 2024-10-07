@@ -50,8 +50,8 @@ def pdfplumber_inference(pdf_path):
     return pages
 
 
-def pdftext_inference(pdf_path, model=None, workers=None):
-    return paginated_plain_text_output(pdf_path, model=model, workers=workers)
+def pdftext_inference(pdf_path, workers=None):
+    return paginated_plain_text_output(pdf_path, workers=workers)
 
 
 def compare_docs(doc1: str, doc2: str):
@@ -78,7 +78,6 @@ def main():
     if args.pdftext_only:
         times_tools = ["pymupdf", "pdftext"]
         alignment_tools = ["pdftext"]
-    model = get_model()
     for i in tqdm(range(len(dataset)), desc="Benchmarking"):
         row = dataset[i]
         pdf = row["pdf"]
@@ -88,7 +87,7 @@ def main():
             f.seek(0)
             pdf_path = f.name
 
-            pdftext_inference_model = partial(pdftext_inference, model=model, workers=args.pdftext_workers)
+            pdftext_inference_model = partial(pdftext_inference, workers=args.pdftext_workers)
             inference_funcs = [pymupdf_inference, pdftext_inference_model, pdfplumber_inference]
             for tool, inference_func in zip(times_tools, inference_funcs):
                 start = time.time()
