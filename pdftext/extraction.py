@@ -1,4 +1,3 @@
-from functools import partial
 from typing import List
 from concurrent.futures import ProcessPoolExecutor
 import math
@@ -12,13 +11,12 @@ from pdftext.postprocessing import merge_text, sort_blocks, postprocess_text, ha
 from pdftext.settings import settings
 
 
-
 def _load_pdf(pdf, flatten_pdf):
     if isinstance(pdf, str):
         pdf = pdfium.PdfDocument(pdf)
-    else:
-        if not isinstance(pdf, pdfium.PdfDocument):
-            raise TypeError("pdf must be a file path string or a PdfDocument object")
+
+    if not isinstance(pdf, pdfium.PdfDocument):
+        raise TypeError("pdf must be a file path string or a PdfDocument object")
 
     # Must be called on the parent pdf, before the page was retrieved
     if flatten_pdf:
@@ -65,6 +63,7 @@ def _get_pages(pdf_path, page_range=None, flatten_pdf=False, workers=None):
     ordered_pages = [page for sublist in pages for page in sublist]
 
     return ordered_pages
+
 
 def plain_text_output(pdf_path, sort=False, hyphens=False, page_range=None, flatten_pdf=False, workers=None) -> str:
     text = paginated_plain_text_output(pdf_path, sort=sort, hyphens=hyphens, page_range=page_range, workers=workers, flatten_pdf=flatten_pdf)

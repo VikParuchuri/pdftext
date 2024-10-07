@@ -1,7 +1,4 @@
-from itertools import chain
-
 import numpy as np
-import sklearn
 
 from pdftext.pdf.utils import LINE_BREAKS, TABS, SPACES
 from pdftext.settings import settings

@@ -19,11 +19,10 @@ include = [
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13,!=3.9.7"
 pypdfium2 = "^4.29.0"
-scikit-learn = "1.4.2"
 pydantic = "^2.7.1"
 pydantic-settings = "^2.2.1"
-
 onnxruntime = "^1.19.2"
+
 [tool.poetry.group.dev.dependencies]
 pymupdf = "^1.24.2"
 datasets = "^2.19.0"
