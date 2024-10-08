@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pdftext"
-version = "0.3.12"
+version = "0.3.13"
 description = "Extract structured text from pdfs quickly"
 authors = ["Vik Paruchuri <vik.paruchuri@gmail.com>"]
 license = "Apache-2.0"
