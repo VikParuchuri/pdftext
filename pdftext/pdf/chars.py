@@ -34,7 +34,7 @@ def get_pdfium_chars(pdf, page_range, flatten_pdf, fontname_sample_freq=settings
 
         if flatten_pdf:
             # Flatten form fields and annotations into page contents.
-            flatten(pdf, page)
+            flatten(page)
 
             # Flattening invalidates existing handles to the page.
             # It is necessary to re-initialize the page handle after flattening.
