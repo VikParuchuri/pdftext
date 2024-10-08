@@ -12,11 +12,7 @@ from pdftext.settings import settings
 
 
 def _load_pdf(pdf, flatten_pdf):
-    if isinstance(pdf, str):
-        pdf = pdfium.PdfDocument(pdf)
-
-    if not isinstance(pdf, pdfium.PdfDocument):
-        raise TypeError("pdf must be a file path string or a PdfDocument object")
+    pdf = pdfium.PdfDocument(pdf)
 
     # Must be called on the parent pdf, before the page was retrieved
     if flatten_pdf:
