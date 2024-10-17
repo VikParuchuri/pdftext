@@ -68,13 +68,13 @@ def get_pdfium_chars(pdf, page_range, flatten_pdf, fontname_sample_freq=settings
 
         fontname = None
         fontflags = None
+        total_chars = text_page.count_chars()
         char_infos = []
-
         rad_to_deg = 180 / math.pi
-        all_chars = text_page.get_text_bounded()
 
-        for char_idx, char in enumerate(all_chars):
-            i = pdfium_c.FPDFText_GetCharIndexFromTextIndex(text_page, char_idx)
+        for i in range(total_chars):
+            char = pdfium_c.FPDFText_GetUnicode(text_page, i)
+            char = chr(char)
             fontsize = round(pdfium_c.FPDFText_GetFontSize(text_page, i), 1)
             fontweight = round(pdfium_c.FPDFText_GetFontWeight(text_page, i), 1)
             if fontname is None or i % fontname_sample_freq == 0:
@@ -99,11 +99,11 @@ def get_pdfium_chars(pdf, page_range, flatten_pdf, fontname_sample_freq=settings
                 "rotation": rotation,
                 "char": char,
                 "bbox": device_coords,
-                "char_idx": char_idx
+                "char_idx": i
             }
             char_infos.append(char_info)
 
         text_chars["chars"] = char_infos
-        text_chars["total_chars"] = len(all_chars)
+        text_chars["total_chars"] = total_chars
         blocks.append(text_chars)
     return blocks
