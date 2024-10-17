@@ -68,12 +68,13 @@ def get_pdfium_chars(pdf, page_range, flatten_pdf, fontname_sample_freq=settings
 
         fontname = None
         fontflags = None
-        total_chars = text_page.count_chars()
         char_infos = []
 
-        for i in range(total_chars):
-            char = pdfium_c.FPDFText_GetUnicode(text_page, i)
-            char = chr(char)
+        rad_to_deg = 180 / math.pi
+        all_chars = text_page.get_text_bounded()
+
+        for char_idx, char in enumerate(all_chars):
+            i = pdfium_c.FPDFText_GetCharIndexFromTextIndex(text_page, char_idx)
             fontsize = round(pdfium_c.FPDFText_GetFontSize(text_page, i), 1)
             fontweight = round(pdfium_c.FPDFText_GetFontWeight(text_page, i), 1)
             if fontname is None or i % fontname_sample_freq == 0:
@@ -84,7 +85,7 @@ def get_pdfium_chars(pdf, page_range, flatten_pdf, fontname_sample_freq=settings
                     update_previous_fonts(char_infos, i, prev_fontname, prev_fontflags, text_page, fontname_sample_freq)
 
             rotation = pdfium_c.FPDFText_GetCharAngle(text_page, i)
-            rotation = rotation * 180 / math.pi # convert from radians to degrees
+            rotation = rotation * rad_to_deg # convert from radians to degrees
             coords = text_page.get_charbox(i, loose=rotation == 0) # Loose doesn't work properly when charbox is rotated
             device_coords = page_bbox_to_device_bbox(page, coords, page_width, page_height, bl_origin, page_rotation, normalize=True)
 
@@ -98,11 +99,11 @@ def get_pdfium_chars(pdf, page_range, flatten_pdf, fontname_sample_freq=settings
                 "rotation": rotation,
                 "char": char,
                 "bbox": device_coords,
-                "char_idx": i
+                "char_idx": char_idx
             }
             char_infos.append(char_info)
 
         text_chars["chars"] = char_infos
-        text_chars["total_chars"] = total_chars
+        text_chars["total_chars"] = len(all_chars)
         blocks.append(text_chars)
     return blocks
