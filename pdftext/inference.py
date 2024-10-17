@@ -112,6 +112,45 @@ def update_block(blocks, block):
     return block
 
 
+def get_dynamic_line_thresh(text_chars, rotation, default_thresh=.05, min_thresh=.0025, min_lines=5):
+    line_dists = []
+    prev_char = None
+    for i, char_info in enumerate(text_chars["chars"][1:]):
+        if prev_char is None:
+            prev_char = char_info
+            continue
+
+        if rotation == 90:
+            line_dist = char_info["bbox"][2] - prev_char["bbox"][0]
+        elif rotation == 180:
+            line_dist = prev_char["bbox"][1] - char_info["bbox"][3]
+        elif rotation == 270:
+            line_dist = char_info["bbox"][0] - prev_char["bbox"][2]
+        else:
+            line_dist = char_info["bbox"][1] - prev_char["bbox"][3]
+
+        if line_dist > min_thresh:
+            line_dists.append(line_dist)
+        prev_char = char_info
+    line_gap_thresh = np.percentile(line_dists, 50) if len(line_dists) > min_lines else default_thresh
+    return line_gap_thresh
+
+
+def is_same_line(char_bbox, line_box, space_thresh, rotation):
+    line_center_x, line_center_y = (line_box[0] + line_box[2]) / 2, (line_box[1] + line_box[3]) / 2
+    def normalized_diff(a, b, mult=1, use_abs=True):
+        func = abs if use_abs else lambda x: x
+        return func(a - b) < space_thresh * mult
+
+    if rotation in [90, 270]:
+        char_center_x = (char_bbox[0] + char_bbox[2]) / 2
+
+        return normalized_diff(char_center_x, line_center_x)
+    else:  # 0 or default case
+        char_center_y = (char_bbox[1] + char_bbox[3]) / 2
+        return normalized_diff(char_center_y, line_center_y)
+
+
 def infer_single_page(text_chars, block_threshold=settings.BLOCK_THRESHOLD):
     prev_char = None
     prev_font_info = None
@@ -127,6 +166,8 @@ def infer_single_page(text_chars, block_threshold=settings.BLOCK_THRESHOLD):
     block = {"lines": []}
     line = {"spans": []}
     span = {"chars": []}
+    rotation = int(text_chars["rotation"])
+    line_thresh = get_dynamic_line_thresh(text_chars, rotation)
 
     for char_info in text_chars["chars"]:
         font = char_info['font']
@@ -144,7 +185,10 @@ def infer_single_page(text_chars, block_threshold=settings.BLOCK_THRESHOLD):
                 span = update_span(line, span)
                 line = update_line(block, line)
                 block = update_block(blocks, block)
-            elif prev_char["char"] in LINE_BREAKS: # Look for newline character as a forcing signal for a new line
+            elif (
+                    prev_char["char"] in LINE_BREAKS or
+                    not is_same_line(char_info["bbox"], line["bbox"], line_thresh, rotation)
+            ): # Look for newline character as a forcing signal for a new line
                 span = update_span(line, span)
                 line = update_line(block, line)
             elif prev_font_info != font_info:
