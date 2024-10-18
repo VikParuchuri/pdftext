@@ -64,6 +64,10 @@ def get_pdfium_chars(pdf, page_range, flatten_pdf, fontname_sample_freq=settings
             "height": page_height,
         }
 
+        # For pypdfium bbox function later
+        page_width = math.ceil(page_width)
+        page_height = math.ceil(page_height)
+
         fontname = None
         fontflags = None
         total_chars = text_page.count_chars()
