@@ -59,26 +59,14 @@ def pdfium_page_bbox_to_device_bbox(page, bbox, page_width, page_height, page_ro
     return dev_bbox
 
 
-def fast_page_bbox_to_device_bbox(page, bbox, page_width, page_height):
-    left, bottom, right, top = bbox
-
-    dev_bbox = [left, page_height-top, right, page_height-bottom]
-    return dev_bbox
-
-
-def page_bbox_to_device_bbox(page, bbox, page_width: int, page_height: int, bl_origin: bool, page_rotation: int, normalize=False):
+def page_bbox_to_device_bbox(page, bbox, page_width: int, page_height: int, page_rotation: int, normalize=False):
     orig_page_height, orig_page_width = page_height, page_width
     if page_rotation in [90, 270]:
         orig_page_height, orig_page_width = page_width, page_height
 
-    if bl_origin:
-        bbox = fast_page_bbox_to_device_bbox(page, bbox, page_width, page_height)
-        if page_rotation > 0:
-            bbox = rotate_page_bbox(bbox, page_rotation, page_width, page_height)
-    else:
-        bbox = pdfium_page_bbox_to_device_bbox(page, bbox, orig_page_width, orig_page_height, page_rotation)
-        if page_rotation > 0:
-            bbox = rotate_pdfium_bbox(bbox, page_rotation, page_width, page_height)
+    bbox = pdfium_page_bbox_to_device_bbox(page, bbox, orig_page_width, orig_page_height, page_rotation)
+    if page_rotation > 0:
+        bbox = rotate_pdfium_bbox(bbox, page_rotation, page_width, page_height)
 
     if normalize:
         bbox = [bbox[0] / page_width, bbox[1] / page_height, bbox[2] / page_width, bbox[3] / page_height]

@@ -45,7 +45,7 @@ def create_training_row(char_info, prev_char, currblock, currline):
 
     is_space = char in SPACES or char in TABS
 
-    return np.array([
+    return [
         char_center_x - currblock["center_x"],
         char_x1 - currblock_bbox[2],
         char_x1 - currblock_bbox[0],
@@ -65,9 +65,7 @@ def create_training_row(char_info, prev_char, currblock, currline):
         char_x2 - prev_x1,
         y_gap,
         char_y2 - prev_y1
-    ], dtype=np.float32)
-
-    return training_row
+    ]
 
 
 def update_span(line, span):
@@ -241,7 +239,7 @@ def inference(text_chars, model):
 
         training_idxs = sorted(training_data.keys())
         training_rows = [training_data[idx] for idx in training_idxs]
-        training_rows = np.stack(training_rows, axis=0)
+        training_rows = np.stack(training_rows, axis=0, dtype=np.float32)
 
         # Run inference
         predictions = model.run([output_name], {input_name: training_rows})[0]
