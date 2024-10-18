@@ -3,18 +3,18 @@ import numpy as np
 from pdftext.pdf.utils import LINE_BREAKS, TABS, SPACES
 from pdftext.settings import settings
 
-
 def update_current(current, new_char):
     bbox = new_char["bbox"]
     if "bbox" not in current:
-        current["bbox"] = bbox.copy()
+        current_bbox = bbox.copy()
+        current["bbox"] = current_bbox
     else:
         current_bbox = current["bbox"]
         current_bbox[0] = min(bbox[0], current_bbox[0])
         current_bbox[1] = min(bbox[1], current_bbox[1])
         current_bbox[2] = max(bbox[2], current_bbox[2])
         current_bbox[3] = max(bbox[3], current_bbox[3])
-    current_bbox = current["bbox"]
+
     current["center_x"] = (current_bbox[0] + current_bbox[2]) / 2
     current["center_y"] = (current_bbox[1] + current_bbox[3]) / 2
 
@@ -45,7 +45,7 @@ def create_training_row(char_info, prev_char, currblock, currline):
 
     is_space = char in SPACES or char in TABS
 
-    return np.array([
+    return [
         char_center_x - currblock["center_x"],
         char_x1 - currblock_bbox[2],
         char_x1 - currblock_bbox[0],
@@ -65,17 +65,12 @@ def create_training_row(char_info, prev_char, currblock, currline):
         char_x2 - prev_x1,
         y_gap,
         char_y2 - prev_y1
-    ], dtype=np.float32)
-
-    return training_row
+    ]
 
 
 def update_span(line, span):
     if span["chars"]:
         first_char = span["chars"][0]
-        span["font"] = first_char["font"]
-        span["rotation"] = first_char["rotation"]
-
         char_bboxes = [char["bbox"] for char in span["chars"]]
         min_x, min_y, max_x, max_y = char_bboxes[0]
 
@@ -85,14 +80,19 @@ def update_span(line, span):
             max_x = max(max_x, bbox[2])
             max_y = max(max_y, bbox[3])
 
-        span["bbox"] = [min_x, min_y, max_x, max_y]
-        span["text"] = "".join(char["char"] for char in span["chars"])
-        span["char_start_idx"] = first_char["char_idx"]
-        span["char_end_idx"] = span["chars"][-1]["char_idx"]
+        span.update({
+            "font": first_char["font"],
+            "rotation": first_char["rotation"],
+            "bbox": [min_x, min_y, max_x, max_y],
+            "text": "".join(char["char"] for char in span["chars"]),
+            "char_start_idx": first_char["char_idx"],
+            "char_end_idx": span["chars"][-1]["char_idx"]
+        })
 
         # Remove unneeded keys from the characters
+        char_keys = list(first_char.keys())
         for char in span["chars"]:
-            for key in list(char.keys()):
+            for key in char_keys:
                 if key not in ["char", "bbox"]:
                     del char[key]
 
@@ -149,7 +149,6 @@ def is_same_line(char_bbox, line_box, space_thresh, rotation):
     else:  # 0 or default case
         char_center_y = (char_bbox[1] + char_bbox[3]) / 2
         return normalized_diff(char_center_y, line_center_y)
-
 
 def infer_single_page(text_chars, block_threshold=settings.BLOCK_THRESHOLD):
     prev_char = None
@@ -241,7 +240,7 @@ def inference(text_chars, model):
 
         training_idxs = sorted(training_data.keys())
         training_rows = [training_data[idx] for idx in training_idxs]
-        training_rows = np.stack(training_rows, axis=0)
+        training_rows = np.stack(training_rows, axis=0, dtype=np.float32)
 
         # Run inference
         predictions = model.run([output_name], {input_name: training_rows})[0]

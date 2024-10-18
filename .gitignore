@@ -4,6 +4,7 @@ temp.json
 notebooks
 results
 .DS_Store
+profile_output*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
