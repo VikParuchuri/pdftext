@@ -22,7 +22,9 @@ def main():
     if args.pages is not None:
         pdf_doc = pdfium.PdfDocument(args.pdf_path)
         pages = [int(p) for p in args.pages.split(",")]
-        assert all(p <= len(pdf_doc) for p in pages), "Invalid page number(s) provided"
+        doc_len = len(pdf_doc)
+        pdf_doc.close()
+        assert all(p <= doc_len for p in pages), "Invalid page number(s) provided"
 
     if args.json:
         text = dictionary_output(args.pdf_path, sort=args.sort, page_range=pages, flatten_pdf=args.flatten_pdf, keep_chars=args.keep_chars, workers=args.workers)
