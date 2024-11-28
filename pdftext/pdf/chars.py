@@ -1,6 +1,5 @@
 import math
-from collections import defaultdict
-from typing import Dict, List
+from typing import List
 
 import pypdfium2.raw as pdfium_c
 from pypdfium2 import PdfiumError
@@ -88,7 +87,8 @@ def get_pdfium_chars(pdf, page_range, flatten_pdf, fontname_sample_freq=settings
 
             rotation = pdfium_c.FPDFText_GetCharAngle(text_page, i)
             rotation = rotation * rad_to_deg # convert from radians to degrees
-            coords = text_page.get_charbox(i, loose=rotation == 0) # Loose doesn't work properly when charbox is rotated
+            use_loosebox = rotation == 0 and not char == "'" # Loose doesn't work properly when charbox is rotated or when it's a quote
+            coords = text_page.get_charbox(i, loose=use_loosebox)
             device_coords = page_bbox_to_device_bbox(page, coords, page_width, page_height, page_rotation, normalize=True)
 
             char_info = {
