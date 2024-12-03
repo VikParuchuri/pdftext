@@ -41,7 +41,12 @@ def get_pdfium_chars(pdf, page_range, flatten_pdf, fontname_sample_freq=settings
             page = pdf.get_page(page_idx)
         
         text_page = page.get_textpage()
-        page_rotation = page.get_rotation()
+        try:
+            page_rotation = page.get_rotation()
+        except KeyError:
+            # This happens on some PDFs, where pdfium_i.RotationToDegrees[ pdfium_c.FPDFPage_GetRotation(self) ] throws a KeyError -1
+            page_rotation = 0
+
         bbox = page.get_bbox()
         page_width = math.ceil(abs(bbox[2] - bbox[0]))
         page_height = math.ceil(abs(bbox[1] - bbox[3]))
