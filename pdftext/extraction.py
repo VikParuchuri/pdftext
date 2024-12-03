@@ -20,12 +20,12 @@ def _load_pdf(pdf, flatten_pdf):
     # Must be called on the parent pdf, before the page was retrieved
     if flatten_pdf:
         pdf.init_forms()
-    
+
     return pdf
 
 
-def _get_page_range(page_range, flatten_pdf=False):
-    text_chars = get_pdfium_chars(pdf_doc, page_range, flatten_pdf)
+def _get_page_range(page_range, flatten_pdf=False, quote_loosebox=True):
+    text_chars = get_pdfium_chars(pdf_doc, page_range, flatten_pdf, quote_loosebox)
     pages = inference(text_chars, model)
     return pages
 
@@ -44,17 +44,17 @@ def worker_init(pdf_path, flatten_pdf):
     atexit.register(partial(worker_shutdown, pdf_doc))
 
 
-def _get_pages(pdf_path, page_range=None, flatten_pdf=False, workers=None):
+def _get_pages(pdf_path, page_range=None, flatten_pdf=False, quote_loosebox=True, workers=None):
     pdf_doc = _load_pdf(pdf_path, flatten_pdf)
     if page_range is None:
         page_range = range(len(pdf_doc))
 
     if workers is not None:
-        workers = min(workers, len(page_range) // settings.WORKER_PAGE_THRESHOLD) # It's inefficient to have too many workers, since we batch in inference
+        workers = min(workers, len(page_range) // settings.WORKER_PAGE_THRESHOLD)  # It's inefficient to have too many workers, since we batch in inference
 
     if workers is None or workers <= 1:
         model = get_model()
-        text_chars = get_pdfium_chars(pdf_doc, page_range, flatten_pdf)
+        text_chars = get_pdfium_chars(pdf_doc, page_range, flatten_pdf, quote_loosebox)
         pdf_doc.close()
         return inference(text_chars, model)
 
@@ -65,7 +65,7 @@ def _get_pages(pdf_path, page_range=None, flatten_pdf=False, workers=None):
     page_range_chunks = [page_range[i * pages_per_worker:(i + 1) * pages_per_worker] for i in range(workers)]
 
     with ProcessPoolExecutor(max_workers=workers, initializer=worker_init, initargs=(pdf_path, flatten_pdf)) as executor:
-        pages = list(executor.map(_get_page_range, page_range_chunks, repeat(flatten_pdf)))
+        pages = list(executor.map(_get_page_range, page_range_chunks, repeat(flatten_pdf), repeat(quote_loosebox)))
 
     ordered_pages = [page for sublist in pages for page in sublist]
     return ordered_pages
@@ -94,8 +94,8 @@ def _process_span(span, page_width, page_height, keep_chars):
             char["bbox"] = unnormalize_bbox(char["bbox"], page_width, page_height)
 
 
-def dictionary_output(pdf_path, sort=False, page_range=None, keep_chars=False, flatten_pdf=False, workers=None):
-    pages = _get_pages(pdf_path, page_range, workers=workers, flatten_pdf=flatten_pdf)
+def dictionary_output(pdf_path, sort=False, page_range=None, keep_chars=False, flatten_pdf=False, quote_loosebox=True, workers=None):
+    pages = _get_pages(pdf_path, page_range, workers=workers, flatten_pdf=flatten_pdf, quote_loosebox=quote_loosebox)
     for page in pages:
         page_width, page_height = page["width"], page["height"]
         for block in page["blocks"]:

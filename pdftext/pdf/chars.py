@@ -9,8 +9,8 @@ from pdftext.settings import settings
 
 
 def update_previous_fonts(char_infos: List, i: int, prev_fontname: str, prev_fontflags: int, text_page, fontname_sample_freq: int):
-    min_update = max(0, i - fontname_sample_freq) # Minimum index to update
-    for j in range(i-1, min_update, -1): # Goes from i to min_update
+    min_update = max(0, i - fontname_sample_freq)  # Minimum index to update
+    for j in range(i - 1, min_update, -1):  # Goes from i to min_update
         fontname, fontflags = get_fontname(text_page, j)
 
         # If we hit the region with the previous fontname, we can bail out
@@ -26,7 +26,7 @@ def flatten(page, flag=pdfium_c.FLAT_NORMALDISPLAY):
         raise PdfiumError("Failed to flatten annotations / form fields.")
 
 
-def get_pdfium_chars(pdf, page_range, flatten_pdf, fontname_sample_freq=settings.FONTNAME_SAMPLE_FREQ):
+def get_pdfium_chars(pdf, page_range, flatten_pdf, quote_loosebox=True, fontname_sample_freq=settings.FONTNAME_SAMPLE_FREQ):
     blocks = []
 
     for page_idx in page_range:
@@ -39,7 +39,7 @@ def get_pdfium_chars(pdf, page_range, flatten_pdf, fontname_sample_freq=settings
             # Flattening invalidates existing handles to the page.
             # It is necessary to re-initialize the page handle after flattening.
             page = pdf.get_page(page_idx)
-        
+
         text_page = page.get_textpage()
         try:
             page_rotation = page.get_rotation()
@@ -91,8 +91,8 @@ def get_pdfium_chars(pdf, page_range, flatten_pdf, fontname_sample_freq=settings
                     update_previous_fonts(char_infos, i, prev_fontname, prev_fontflags, text_page, fontname_sample_freq)
 
             rotation = pdfium_c.FPDFText_GetCharAngle(text_page, i)
-            rotation = rotation * rad_to_deg # convert from radians to degrees
-            use_loosebox = rotation == 0 and not char == "'" # Loose doesn't work properly when charbox is rotated or when it's a quote
+            rotation = rotation * rad_to_deg  # convert from radians to degrees
+            use_loosebox = rotation == 0 and (not char == "'" or quote_loosebox)  # Loose doesn't work properly when charbox is rotated or when it's a quote
             coords = text_page.get_charbox(i, loose=use_loosebox)
             device_coords = page_bbox_to_device_bbox(page, coords, page_width, page_height, page_rotation, normalize=True)
 
