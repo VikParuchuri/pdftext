@@ -107,4 +107,7 @@ def dictionary_output(pdf_path, sort=False, page_range=None, keep_chars=False, f
         if sort:
             page["blocks"] = sort_blocks(page["blocks"])
 
+        if page["rotation"] == 90 or page["rotation"] == 270:
+            page["width"], page["height"] = page["height"], page["width"]
+            page["bbox"] = [page["bbox"][2], page["bbox"][3], page["bbox"][0], page["bbox"][1]]
     return pages
