@@ -124,8 +124,6 @@ class Char(TypedDict):
     rotation: float
     font: Dict[str, Union[Any, str]]
     char_idx: int
-    char_start_idx: int
-    char_end_idx: int
 
 
 class Span(TypedDict):
@@ -135,7 +133,8 @@ class Span(TypedDict):
     font_weight: float
     font_size: float
     chars: List[Char]
-
+    char_start_idx: int
+    char_end_idx: int
 
 class Line(TypedDict):
     spans: List[Span]

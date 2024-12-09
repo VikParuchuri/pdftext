@@ -9,8 +9,6 @@ from pdftext.schema import Bbox, Chars
 
 def get_chars(textpage: pdfium.PdfTextPage, page_bbox: list[float], page_rotation: int, quote_loosebox=True, normalize=True) -> Chars:
     chars: Chars = []
-    start_idx = 0
-    end_idx = 1
 
     x_start, y_start, x_end, y_end = page_bbox
     page_width = math.ceil(abs(x_end - x_start))
@@ -19,7 +17,6 @@ def get_chars(textpage: pdfium.PdfTextPage, page_bbox: list[float], page_rotatio
     for i in range(textpage.count_chars()):
         fontname, fontflag = get_fontname(textpage, i)
         text = chr(pdfium_c.FPDFText_GetUnicode(textpage, i))
-        end_idx = start_idx + len(text)
 
         rotation = pdfium_c.FPDFText_GetCharAngle(textpage, i)
         loosebox = rotation == 0 and (not text == "'" or quote_loosebox)
@@ -50,9 +47,6 @@ def get_chars(textpage: pdfium.PdfTextPage, page_bbox: list[float], page_rotatio
                 "size": pdfium_c.FPDFText_GetFontSize(textpage, i),
                 "weight": pdfium_c.FPDFText_GetFontWeight(textpage, i),
             },
-            "char_idx": i,
-            "char_start_idx": start_idx,
-            "char_end_idx": end_idx
+            "char_idx": i
         })
-        start_idx = end_idx
     return chars

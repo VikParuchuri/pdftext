@@ -21,8 +21,8 @@ def get_spans(chars: Chars) -> Spans:
             "text": char["char"],
             "rotation": char["rotation"],
             "font": char["font"],
-            "char_start_idx": char["char_start_idx"],
-            "char_end_idx": char["char_end_idx"],
+            "char_start_idx": char["char_idx"],
+            "char_end_idx": char["char_idx"],
             "chars": [char]
         })
 
@@ -47,7 +47,7 @@ def get_spans(chars: Chars) -> Spans:
             continue
 
         span['text'] += char['char']
-        span['char_end_idx'] = char['char_end_idx']
+        span['char_end_idx'] = char['char_idx']
         span['bbox'] = span['bbox'].merge(char['bbox'])
         span['chars'].append(char)
 
