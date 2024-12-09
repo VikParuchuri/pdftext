@@ -1,16 +1,14 @@
 import atexit
+import math
+from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from itertools import repeat
 from typing import List
-from concurrent.futures import ProcessPoolExecutor
-import math
+
 import pypdfium2 as pdfium
 
-from pdftext.inference import inference
-from pdftext.model import get_model
-from pdftext.pdf.chars import get_pdfium_chars
-from pdftext.pdf.utils import unnormalize_bbox
-from pdftext.postprocessing import merge_text, sort_blocks, postprocess_text, handle_hyphens
+from pdftext.pdf.pages import get_pages
+from pdftext.postprocessing import handle_hyphens, merge_text, postprocess_text, sort_blocks
 from pdftext.settings import settings
 
 
@@ -25,9 +23,7 @@ def _load_pdf(pdf, flatten_pdf):
 
 
 def _get_page_range(page_range, flatten_pdf=False, quote_loosebox=True):
-    text_chars = get_pdfium_chars(pdf_doc, page_range, flatten_pdf, quote_loosebox)
-    pages = inference(text_chars, model)
-    return pages
+    return get_pages(pdf_doc, page_range, flatten_pdf, quote_loosebox)
 
 
 def worker_shutdown(pdf_doc):
@@ -35,11 +31,9 @@ def worker_shutdown(pdf_doc):
 
 
 def worker_init(pdf_path, flatten_pdf):
-    global model
     global pdf_doc
 
     pdf_doc = _load_pdf(pdf_path, flatten_pdf)
-    model = get_model()
 
     atexit.register(partial(worker_shutdown, pdf_doc))
 
@@ -53,10 +47,9 @@ def _get_pages(pdf_path, page_range=None, flatten_pdf=False, quote_loosebox=True
         workers = min(workers, len(page_range) // settings.WORKER_PAGE_THRESHOLD)  # It's inefficient to have too many workers, since we batch in inference
 
     if workers is None or workers <= 1:
-        model = get_model()
-        text_chars = get_pdfium_chars(pdf_doc, page_range, flatten_pdf, quote_loosebox)
+        pages = get_pages(pdf_doc, page_range, flatten_pdf, quote_loosebox)
         pdf_doc.close()
-        return inference(text_chars, model)
+        return pages
 
     pdf_doc.close()
     page_range = list(page_range)
@@ -85,13 +78,13 @@ def paginated_plain_text_output(pdf_path, sort=False, hyphens=False, page_range=
 
 
 def _process_span(span, page_width, page_height, keep_chars):
-    span["bbox"] = unnormalize_bbox(span["bbox"], page_width, page_height)
+    span["bbox"] = span["bbox"].unnormalize(page_width, page_height)
     span["text"] = handle_hyphens(postprocess_text(span["text"]), keep_hyphens=True)
     if not keep_chars:
         del span["chars"]
     else:
         for char in span["chars"]:
-            char["bbox"] = unnormalize_bbox(char["bbox"], page_width, page_height)
+            char["bbox"] = char["bbox"].unnormalize(page_width, page_height)
 
 
 def dictionary_output(pdf_path, sort=False, page_range=None, keep_chars=False, flatten_pdf=False, quote_loosebox=True, workers=None):
@@ -102,12 +95,12 @@ def dictionary_output(pdf_path, sort=False, page_range=None, keep_chars=False, f
             for k in list(block.keys()):
                 if k not in ["lines", "bbox"]:
                     del block[k]
-            block["bbox"] = unnormalize_bbox(block["bbox"], page_width, page_height)
+            block["bbox"] = block["bbox"].unnormalize(page_width, page_height)
             for line in block["lines"]:
                 for k in list(line.keys()):
                     if k not in ["spans", "bbox"]:
                         del line[k]
-                line["bbox"] = unnormalize_bbox(line["bbox"], page_width, page_height)
+                line["bbox"] = line["bbox"].unnormalize(page_width, page_height)
                 for span in line["spans"]:
                     _process_span(span, page_width, page_height, keep_chars)
 
