@@ -78,13 +78,13 @@ def paginated_plain_text_output(pdf_path, sort=False, hyphens=False, page_range=
 
 
 def _process_span(span, page_width, page_height, keep_chars):
-    span["bbox"] = span["bbox"].unnormalize(page_width, page_height).bbox
+    span["bbox"] = span["bbox"].bbox
     span["text"] = handle_hyphens(postprocess_text(span["text"]), keep_hyphens=True)
     if not keep_chars:
         del span["chars"]
     else:
         for char in span["chars"]:
-            char["bbox"] = char["bbox"].unnormalize(page_width, page_height).bbox
+            char["bbox"] = char["bbox"].bbox
 
 
 def dictionary_output(pdf_path, sort=False, page_range=None, keep_chars=False, flatten_pdf=False, quote_loosebox=True, workers=None):
@@ -95,12 +95,12 @@ def dictionary_output(pdf_path, sort=False, page_range=None, keep_chars=False, f
             for k in list(block.keys()):
                 if k not in ["lines", "bbox"]:
                     del block[k]
-            block["bbox"] = block["bbox"].unnormalize(page_width, page_height).bbox
+            block["bbox"] = block["bbox"].bbox
             for line in block["lines"]:
                 for k in list(line.keys()):
                     if k not in ["spans", "bbox"]:
                         del line[k]
-                line["bbox"] = line["bbox"].unnormalize(page_width, page_height).bbox
+                line["bbox"] = line["bbox"].bbox
                 for span in line["spans"]:
                     _process_span(span, page_width, page_height, keep_chars)
 

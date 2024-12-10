@@ -101,22 +101,6 @@ class Bbox:
 
         return Bbox(rotated_bbox)
 
-    def normalize(self, page_width, page_height):
-        return Bbox([
-            self.bbox[0] / page_width,
-            self.bbox[1] / page_height,
-            self.bbox[2] / page_width,
-            self.bbox[3] / page_height
-        ])
-
-    def unnormalize(self, page_width, page_height):
-        return Bbox([
-            self.bbox[0] * page_width,
-            self.bbox[1] * page_height,
-            self.bbox[2] * page_width,
-            self.bbox[3] * page_height
-        ])
-
 
 class Char(TypedDict):
     bbox: Bbox
@@ -135,6 +119,7 @@ class Span(TypedDict):
     chars: List[Char]
     char_start_idx: int
     char_end_idx: int
+
 
 class Line(TypedDict):
     spans: List[Span]

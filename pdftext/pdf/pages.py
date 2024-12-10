@@ -188,8 +188,7 @@ def get_pages(
     pdf: pdfium.PdfDocument,
     page_range: range,
     flatten_pdf: bool = True,
-    quote_loosebox=True,
-    normalize=True
+    quote_loosebox=True
 ) -> Pages:
     pages: Pages = []
 
@@ -211,7 +210,7 @@ def get_pages(
         except:
             pass
 
-        chars = get_chars(textpage, page_bbox, page_rotation, quote_loosebox, normalize)
+        chars = get_chars(textpage, page_bbox, page_rotation, quote_loosebox)
         spans = get_spans(chars)
         lines = get_lines(spans)
         blocks = get_blocks(lines)

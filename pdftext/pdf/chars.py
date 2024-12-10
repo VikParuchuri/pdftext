@@ -7,7 +7,7 @@ from pdftext.pdf.utils import get_fontname
 from pdftext.schema import Bbox, Chars
 
 
-def get_chars(textpage: pdfium.PdfTextPage, page_bbox: list[float], page_rotation: int, quote_loosebox=True, normalize=True) -> Chars:
+def get_chars(textpage: pdfium.PdfTextPage, page_bbox: list[float], page_rotation: int, quote_loosebox=True) -> Chars:
     chars: Chars = []
 
     x_start, y_start, x_end, y_end = page_bbox
@@ -34,8 +34,6 @@ def get_chars(textpage: pdfium.PdfTextPage, page_bbox: list[float], page_rotatio
 
         bbox = [cx_start, min(ty_start, ty_end), cx_end, max(ty_start, ty_end)]
         bbox = Bbox(bbox).rotate(page_width, page_height, page_rotation)
-        if normalize:
-            bbox = bbox.normalize(page_width, page_height)
 
         chars.append({
             "bbox": bbox,
