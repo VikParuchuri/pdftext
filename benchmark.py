@@ -74,13 +74,13 @@ def main():
     times_tools = ["pymupdf", "pdftext", "pdfplumber"]
     alignment_tools = ["pdftext", "pdfplumber"]
     if args.pdftext_only:
-        times_tools = ["pymupdf", "pdftext"]
+        times_tools = ["pdftext"]
         alignment_tools = ["pdftext"]
     for i in tqdm(range(len(dataset)), desc="Benchmarking"):
         row = dataset[i]
         pdf = row["pdf"]
         tool_pages = {}
-        with tempfile.NamedTemporaryFile(dir='.', suffix=".pdf", mode='wb') as f:
+        with tempfile.NamedTemporaryFile(dir='.', suffix=".pdf", mode='wb', delete=False) as f:
             f.write(pdf)
             f.seek(0)
             pdf_path = f.name
