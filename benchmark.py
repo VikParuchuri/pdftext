@@ -74,7 +74,7 @@ def main():
     times_tools = ["pymupdf", "pdftext", "pdfplumber"]
     alignment_tools = ["pdftext", "pdfplumber"]
     if args.pdftext_only:
-        times_tools = ["pdftext"]
+        times_tools = ["pymupdf", "pdftext"]
         alignment_tools = ["pdftext"]
     for i in tqdm(range(len(dataset)), desc="Benchmarking"):
         row = dataset[i]
