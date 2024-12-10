@@ -80,7 +80,7 @@ def main():
         row = dataset[i]
         pdf = row["pdf"]
         tool_pages = {}
-        with tempfile.NamedTemporaryFile(suffix=".pdf") as f:
+        with tempfile.NamedTemporaryFile(suffix=".pdf", mode='w') as f:
             f.write(pdf)
             f.seek(0)
             pdf_path = f.name

@@ -6,30 +6,11 @@ env:
   TORCH_DEVICE: "cpu"
 
 jobs:
-  build-ubuntu:
-    name: Build on Ubuntu
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.11
-
-      - name: Install Python dependencies
-        run: |
-          pip install poetry
-          poetry install
-
-      - name: Run detection benchmark test
-        run: |
-          poetry run python benchmark.py --max 5 --result_path results --pdftext_only
-          poetry run python scripts/verify_benchmark_scores.py results/results.json
-
-  build-windows:
-    name: Build on Windows
-    runs-on: windows-latest
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest-large]
     steps:
       - uses: actions/checkout@v3
 
