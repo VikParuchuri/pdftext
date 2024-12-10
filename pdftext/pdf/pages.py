@@ -34,6 +34,7 @@ def get_spans(chars: Chars) -> Spans:
             span_break()
             continue
 
+        # we break on any change in font info
         if any(char['font'][k] != span['font'][k] for k in ['name', 'flags', 'size', 'weight']):
             span_break()
             continue
@@ -42,6 +43,7 @@ def get_spans(chars: Chars) -> Spans:
             span_break()
             continue
 
+        # we also break on hyphenation
         if span['text'].endswith("\x02"):
             span_break()
             continue
@@ -68,8 +70,8 @@ def get_lines(spans: Spans) -> Lines:
             line_break()
             continue
 
+        # we break if the previous span ends with a CLRF or hyphenation
         if any(line["spans"][-1]["text"].endswith(suffix) for suffix in ["\r\n", "\x02"]):
-            line["spans"][-1]["text"] = line["spans"][-1]["text"].replace("\x02", "-")
             line_break()
             continue
 
@@ -77,6 +79,7 @@ def get_lines(spans: Spans) -> Lines:
             line_break()
             continue
 
+        # sometimes pdfium doesn't inject a CLRF at the end of a line, so we check the span positions
         if span["bbox"].y_start > line["bbox"].y_end:
             line_break()
             continue
@@ -130,30 +133,36 @@ def get_blocks(lines: Lines) -> Blocks:
         x_diff = abs(current_center[0] - last_center[0])
         y_diff = abs(current_center[1] - last_center[1])
 
+        # we merge if the line is close enough to the previous line
         if x_diff <= allowed_x_gap and y_diff <= allowed_y_gap:
             block_merge()
             continue
 
+        # we make an exception for the first line w.r.t the x diff, because the first line is usually indented
         line_x_indented_start = last_line["bbox"].x_start > line["bbox"].x_start
         if len(block["lines"]) == 1 and line_x_indented_start and y_diff <= allowed_y_gap:
             block_merge()
             continue
 
+        # we make an exception for the last line w.r.t the x diff, because the last line is can be incomplete
         line_x_indented_end = last_line["bbox"].x_end > line["bbox"].x_end
         if line_x_indented_end and y_diff <= allowed_y_gap:
             block_merge()
             continue
 
+        # if the y diff is very small, and you see a line continuation, we merge (can happen with inline math between text spans)
         if y_diff < allowed_y_gap * 0.2 and last_line["bbox"].x_end > line["bbox"].x_start:
             block_merge()
             continue
 
+        # we also merge when we see the current line intersecting the previous block
         if block["bbox"].intersection_pct(line["bbox"]) > 0:
             block_merge()
             continue
 
         blocks.append({"lines": [line], "bbox": line["bbox"]})
 
+    # we do one last pass of merging overlapping blocks in the PDF reading order
     merged_blocks = []
     for i in range(len(blocks)):
         if not merged_blocks:
