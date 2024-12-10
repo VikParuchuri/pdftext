@@ -16,7 +16,7 @@ def get_spans(chars: Chars) -> Spans:
     span: Span = None
 
     def span_break():
-        return spans.append({
+        spans.append({
             "bbox": char["bbox"],
             "text": char["char"],
             "rotation": char["rotation"],
@@ -60,7 +60,8 @@ def get_lines(spans: Spans) -> Lines:
     lines: Lines = []
     line: Line = None
 
-    def line_break(): return lines.append({"spans": [span], "bbox": span["bbox"], "rotation": span["rotation"]})
+    def line_break():
+        lines.append({"spans": [span], "bbox": span["bbox"], "rotation": span["rotation"]})
 
     for span in spans:
         if lines:
@@ -224,20 +225,3 @@ def get_pages(
             "blocks": blocks
         })
     return pages
-
-
-if __name__ == "__main__":
-    # import cProfile
-
-    pdf_path = '/home/ubuntu/surya-test/pdfs/chinese_progit.pdf'
-    pdf = pdfium.PdfDocument(pdf_path)
-
-    # cProfile.run('get_pages(pdf, range(len(pdf)))', filename='pdf_parsing_bbox.prof')
-
-    # for page in get_pages(pdf, [481]):
-    #     for block in page["blocks"]:
-    #         for line_idx, line in enumerate(block["lines"]):
-    #             text = ""
-    #             for span_idx, span in enumerate(line["spans"]):
-    #                 text += span["text"]
-    #             print(text, [span["text"] for span in line["spans"]])
