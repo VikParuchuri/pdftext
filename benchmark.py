@@ -13,10 +13,8 @@ import pdfplumber
 from rapidfuzz import fuzz
 import tabulate
 from tqdm import tqdm
-import pypdfium2 as pdfium
 
 from pdftext.extraction import paginated_plain_text_output
-from pdftext.model import get_model
 from pdftext.settings import settings
 
 
@@ -94,6 +92,8 @@ def main():
                 pages = inference_func(pdf_path)
                 times[tool].append(time.time() - start)
                 tool_pages[tool] = pages
+                open(f"{row['__key__']}.{tool}.md", "w").write("\n".join(pages))
+                open(f"{row['__key__']}.pdf", "wb").write(pdf)
 
             for tool in alignment_tools:
                 alignments[tool].append(
