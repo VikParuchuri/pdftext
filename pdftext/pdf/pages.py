@@ -71,8 +71,8 @@ def get_lines(spans: Spans) -> Lines:
             line_break()
             continue
 
-        # we break if the previous span ends with a CLRF or hyphenation
-        if any(line["spans"][-1]["text"].endswith(suffix) for suffix in ["\r\n", "\x02"]):
+        # we break if the previous span ends with a linebreak or hyphenation
+        if any(line["spans"][-1]["text"].endswith(suffix) for suffix in ["\n", "\x02"]):
             line_break()
             continue
 
@@ -80,7 +80,7 @@ def get_lines(spans: Spans) -> Lines:
             line_break()
             continue
 
-        # sometimes pdfium doesn't inject a CLRF at the end of a line, so we check the span positions
+        # sometimes pdfium doesn't inject a linebreak, so we check the span positions
         if span["bbox"].y_start > line["bbox"].y_end:
             line_break()
             continue
