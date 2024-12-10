@@ -92,8 +92,6 @@ def main():
                 pages = inference_func(pdf_path)
                 times[tool].append(time.time() - start)
                 tool_pages[tool] = pages
-                open(f"{row['__key__']}.{tool}.md", "w").write("\n".join(pages))
-                open(f"{row['__key__']}.pdf", "wb").write(pdf)
 
             for tool in alignment_tools:
                 alignments[tool].append(
