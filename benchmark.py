@@ -13,10 +13,8 @@ import pdfplumber
 from rapidfuzz import fuzz
 import tabulate
 from tqdm import tqdm
-import pypdfium2 as pdfium
 
 from pdftext.extraction import paginated_plain_text_output
-from pdftext.model import get_model
 from pdftext.settings import settings
 
 
@@ -82,7 +80,7 @@ def main():
         row = dataset[i]
         pdf = row["pdf"]
         tool_pages = {}
-        with tempfile.NamedTemporaryFile(suffix=".pdf") as f:
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
             f.write(pdf)
             f.seek(0)
             pdf_path = f.name
