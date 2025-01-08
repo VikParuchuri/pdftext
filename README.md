@@ -42,7 +42,7 @@ pdftext PDF_PATH --out_path output.txt --json
 - `--out_path` path to the output txt file.  If not specified, will write to stdout.
 - `--json` specifies json output
 - `--sort` will attempt to sort in reading order if specified.
-- `--pages` will specify pages (comma separated) to extract
+- `--page_range` will specify pages (comma separated) to extract.  Like `0,5-10,12`.
 - `--keep_chars` will keep individual characters in the json output
 - `--workers` specifies the number of parallel workers to use
 - `--flatten_pdf` merges form fields into the PDF
@@ -86,6 +86,22 @@ Extract structured blocks and lines:
 from pdftext.extraction import dictionary_output
 
 text = dictionary_output(PDF_PATH, sort=False, page_range=[1,2,3], keep_chars=False) # Optional arguments explained above
+```
+
+Extract text from table cells:
+
+```python
+from pdftext.extraction import table_output
+
+table_inputs = [
+  # Each dictionary entry is a single page
+  {
+    "tables": [[5,10,10,20]], # Coordinates for tables on the page
+    "img_size": [512, 512] # The size of the image the tables were detected in
+  }
+]
+text = table_output(PDF_PATH, table_inputs, page_range=[1,2,3])
+
 ```
 
 If you want more customization, check out the `pdftext.extraction._get_pages` function for a starting point to dig deeper.  pdftext is a pretty thin wrapper around [pypdfium2](https://pypdfium2.readthedocs.io/en/stable/), so you might want to look at the documentation for that as well.

@@ -1,26 +1,8 @@
 from typing import List
 import numpy as np
 
-from pdftext.schema import Pages, Page, Bbox, Tables
-
-
-def sort_text_lines(lines: List[dict], tolerance=1.25):
-    # Sorts in reading order.  Not 100% accurate, this should only
-    # be used as a starting point for more advanced sorting.
-    vertical_groups = {}
-    for line in lines:
-        group_key = (line["bbox"][1] / tolerance) * tolerance
-        if group_key not in vertical_groups:
-            vertical_groups[group_key] = []
-        vertical_groups[group_key].append(line)
-
-    # Sort each group horizontally and flatten the groups into a single list
-    sorted_lines = []
-    for _, group in sorted(vertical_groups.items()):
-        sorted_group = sorted(group, key=lambda x: x["bbox"][0])
-        sorted_lines.extend(sorted_group)
-
-    return sorted_lines
+from pdftext.postprocessing import sort_blocks
+from pdftext.schema import Page, Bbox, Tables
 
 
 def get_dynamic_gap_thresh(page: Page, img_size: list, default_thresh=.01, min_chars=100):
@@ -43,12 +25,11 @@ def get_dynamic_gap_thresh(page: Page, img_size: list, default_thresh=.01, min_c
     return cell_gap_thresh
 
 
-def is_same_span(char, curr_box, img_size, space_thresh, rotation):
+def is_same_span(bbox, curr_box, img_size, space_thresh, rotation):
     def normalized_diff(a, b, dimension, mult=1, use_abs=True):
         func = abs if use_abs else lambda x: x
         return func(a - b) / img_size[dimension] < space_thresh * mult
 
-    bbox = char["bbox"]
     if rotation == 90:
         return all([
             normalized_diff(bbox[0], curr_box[0], 0, use_abs=False),
@@ -90,29 +71,30 @@ def table_cell_text(tables: List[List[int]], page: Page, img_size: list, table_t
 
         for block in page["blocks"]:
             for line in block["lines"]:
-                if line["bbox"].intersection_pct(table_poly) < table_thresh:
+                line_bbox = Bbox(bbox=line["bbox"]).rescale(img_size, page)
+                if line_bbox.intersection_pct(table_poly) < table_thresh:
                     continue
                 curr_span = None
                 curr_box = None
                 for span in line["spans"]:
                     for char in span["chars"]:
-                        char["bbox"] = char["bbox"].rescale(img_size, page) # Rescale to match image dimensions
+                        bbox = Bbox(bbox=char["bbox"]).rescale(img_size, page).bbox
                         same_span = False
                         if curr_span:
-                            same_span = is_same_span(char, curr_box, img_size, space_thresh, rotation)
+                            same_span = is_same_span(bbox, curr_box, img_size, space_thresh, rotation)
 
                         if curr_span is None:
                             curr_span = char["char"]
-                            curr_box = char["bbox"]
+                            curr_box = bbox
                         elif same_span:
                             curr_span += char["char"]
-                            curr_box = [min(curr_box[0], char["bbox"][0]), min(curr_box[1], char["bbox"][1]),
-                                        max(curr_box[2], char["bbox"][2]), max(curr_box[3], char["bbox"][3])]
+                            curr_box = [min(curr_box[0], bbox[0]), min(curr_box[1], bbox[1]),
+                                        max(curr_box[2], bbox[2]), max(curr_box[3], bbox[3])]
                         else:
                             if curr_span.strip():
                                 table_text.append({"text": curr_span, "bbox": curr_box})
                             curr_span = char["char"]
-                            curr_box = char["bbox"]
+                            curr_box = bbox
                 if curr_span is not None and curr_span.strip():
                     table_text.append({"text": curr_span, "bbox": curr_box})
         # Adjust to be relative to input table
@@ -124,6 +106,6 @@ def table_cell_text(tables: List[List[int]], page: Page, img_size: list, table_t
                 item["bbox"][3] - table[1]
             ]
             item["bbox"] = Bbox(bbox=item["bbox"])
-        table_text = sort_text_lines(table_text)
+        table_text = sort_blocks(table_text)
         table_texts.append(table_text)
     return table_texts

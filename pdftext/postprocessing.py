@@ -76,8 +76,7 @@ def sort_blocks(blocks: List, tolerance=1.25) -> List:
     # Sort blocks into best guess reading order
     vertical_groups = {}
     for block in blocks:
-        bbox = block["bbox"]
-        group_key = round(bbox[1] / tolerance) * tolerance
+        group_key = round(block["bbox"][1] / tolerance) * tolerance
         if group_key not in vertical_groups:
             vertical_groups[group_key] = []
         vertical_groups[group_key].append(block)
