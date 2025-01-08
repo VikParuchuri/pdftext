@@ -9,7 +9,9 @@ import pypdfium2 as pdfium
 
 from pdftext.pdf.pages import get_pages
 from pdftext.postprocessing import handle_hyphens, merge_text, postprocess_text, sort_blocks
+from pdftext.schema import Pages, TableInputs, Tables
 from pdftext.settings import settings
+from pdftext.tables import table_cell_text
 
 
 def _load_pdf(pdf, flatten_pdf):
@@ -22,7 +24,7 @@ def _load_pdf(pdf, flatten_pdf):
     return pdf
 
 
-def _get_page_range(page_range, flatten_pdf=False, quote_loosebox=True):
+def _get_page_range(page_range, flatten_pdf=False, quote_loosebox=True) -> Pages:
     return get_pages(pdf_doc, page_range, flatten_pdf, quote_loosebox)
 
 
@@ -38,7 +40,7 @@ def worker_init(pdf_path, flatten_pdf):
     atexit.register(partial(worker_shutdown, pdf_doc))
 
 
-def _get_pages(pdf_path, page_range=None, flatten_pdf=False, quote_loosebox=True, workers=None):
+def _get_pages(pdf_path, page_range=None, flatten_pdf=False, quote_loosebox=True, workers=None) -> Pages:
     pdf_doc = _load_pdf(pdf_path, flatten_pdf)
     if page_range is None:
         page_range = range(len(pdf_doc))
@@ -70,7 +72,7 @@ def plain_text_output(pdf_path, sort=False, hyphens=False, page_range=None, flat
 
 
 def paginated_plain_text_output(pdf_path, sort=False, hyphens=False, page_range=None, flatten_pdf=False, workers=None) -> List[str]:
-    pages = _get_pages(pdf_path, page_range, workers=workers, flatten_pdf=flatten_pdf)
+    pages: Pages = _get_pages(pdf_path, page_range, workers=workers, flatten_pdf=flatten_pdf)
     text = []
     for page in pages:
         text.append(merge_text(page, sort=sort, hyphens=hyphens).strip())
@@ -87,8 +89,16 @@ def _process_span(span, page_width, page_height, keep_chars):
             char["bbox"] = char["bbox"].bbox
 
 
-def dictionary_output(pdf_path, sort=False, page_range=None, keep_chars=False, flatten_pdf=False, quote_loosebox=True, workers=None):
-    pages = _get_pages(pdf_path, page_range, workers=workers, flatten_pdf=flatten_pdf, quote_loosebox=quote_loosebox)
+def dictionary_output(
+        pdf_path,
+        sort=False,
+        page_range=None,
+        keep_chars=False,
+        flatten_pdf=False,
+        quote_loosebox=True,
+        workers=None
+) -> Pages:
+    pages: Pages = _get_pages(pdf_path, page_range, workers=workers, flatten_pdf=flatten_pdf, quote_loosebox=quote_loosebox)
     for page in pages:
         page_width, page_height = page["width"], page["height"]
         for block in page["blocks"]:
@@ -111,3 +121,27 @@ def dictionary_output(pdf_path, sort=False, page_range=None, keep_chars=False, f
             page["width"], page["height"] = page["height"], page["width"]
             page["bbox"] = [page["bbox"][2], page["bbox"][3], page["bbox"][0], page["bbox"][1]]
     return pages
+
+def table_output(
+    pdf_path: str,
+    table_inputs: TableInputs,
+    page_range=None,
+    flatten_pdf=False,
+    quote_loosebox=True,
+    workers=None,
+    pages: Pages | None = None
+) -> List[Tables]:
+    # Extract pages if they don't exist
+    if not pages:
+        pages: Pages = dictionary_output(pdf_path, page_range=page_range, flatten_pdf=flatten_pdf, quote_loosebox=quote_loosebox, workers=workers, keep_chars=True)
+
+    assert len(pages) == len(table_inputs), "Number of pages and table inputs must match"
+
+    # Extract table cells per page
+    out_tables = []
+    for page, table_input in zip(pages, table_inputs):
+        tables = table_cell_text(table_input["tables"], page, table_input["img_size"])
+        assert len(tables) == len(table_input["tables"]), "Number of tables and table inputs must match"
+        out_tables.append(tables)
+    return out_tables
+

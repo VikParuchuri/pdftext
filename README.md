@@ -26,7 +26,7 @@ pdftext PDF_PATH --out_path output.txt
 - `--out_path` path to the output txt file.  If not specified, will write to stdout.
 - `--sort` will attempt to sort in reading order if specified.
 - `--keep_hyphens` will keep hyphens in the output (they will be stripped and words joined otherwise)
-- `--pages` will specify pages (comma separated) to extract
+- `--page_range` will specify pages (comma separated) to extract.  Like `0,5-10,12`.
 - `--workers` specifies the number of parallel workers to use
 - `--flatten_pdf` merges form fields into the PDF
 
