@@ -105,7 +105,6 @@ def table_cell_text(tables: List[List[int]], page: Page, img_size: list, table_t
                 item["bbox"][2] - table[0],
                 item["bbox"][3] - table[1]
             ]
-            item["bbox"] = Bbox(bbox=item["bbox"])
         table_text = sort_blocks(table_text)
         table_texts.append(table_text)
     return table_texts
