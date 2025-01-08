@@ -115,8 +115,8 @@ Here are the scores, run on an M1 Macbook, without multiprocessing:
 | Library    | Time (s per page) | Alignment Score (% accuracy vs pymupdf) |
 |------------|-------------------|-----------------------------------------|
 | pymupdf    | 0.32              | --                                      |
-| pdftext    | 1.4               | 97.76                                   |
-| pdfplumber | 3.0               | 90.3                                    |
+| pdftext    | 1.36              | 97.78                                   |
+| pdfplumber | 3.16              | 90.36                                   |
 
 pdftext is approximately 2x slower than using pypdfium2 alone (if you were to extract all the same character information).
 
