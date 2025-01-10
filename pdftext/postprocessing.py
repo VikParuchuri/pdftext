@@ -84,6 +84,7 @@ def sort_blocks(blocks: List, tolerance=1.25) -> List:
     # Sort each group horizontally and flatten the groups into a single list
     sorted_page_blocks = []
     for _, group in sorted(vertical_groups.items()):
+        # Handle both Bbox object and raw list cases for x coordinate
         sorted_group = sorted(group, key=lambda x: x["bbox"][0])
         sorted_page_blocks.extend(sorted_group)
 
