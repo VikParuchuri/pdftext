@@ -7,6 +7,9 @@ class Bbox:
     def __init__(self, bbox: List[float]):
         self.bbox = bbox
 
+    def __getitem__(self, item):
+        return self.bbox[item]
+
     @property
     def height(self):
         return self.bbox[3] - self.bbox[1]
@@ -101,6 +104,18 @@ class Bbox:
 
         return Bbox(rotated_bbox)
 
+    def rescale(self, img_size: List[int], page: Page) -> Bbox:
+        w_scale = img_size[0] / page["width"]
+        h_scale = img_size[1] / page["height"]
+        new_bbox = [
+            self.bbox[0] * w_scale,
+            self.bbox[1] * h_scale,
+            self.bbox[2] * w_scale,
+            self.bbox[3] * h_scale
+        ]
+
+        return Bbox(new_bbox)
+
 
 class Char(TypedDict):
     bbox: Bbox
@@ -116,7 +131,7 @@ class Span(TypedDict):
     font: Dict[str, Union[Any, str]]
     font_weight: float
     font_size: float
-    chars: List[Char]
+    chars: List[Char] | None
     char_start_idx: int
     char_end_idx: int
 
@@ -137,6 +152,15 @@ class Page(TypedDict):
     width: int
     height: int
     blocks: List[Block]
+    rotation: int
+
+class TableCell(TypedDict):
+    text: str
+    bbox: Bbox
+
+class TableInput(TypedDict):
+    tables: List[List[int]]
+    img_size: List[int]
 
 
 Chars = List[Char]
@@ -144,3 +168,5 @@ Spans = List[Span]
 Lines = List[Line]
 Blocks = List[Block]
 Pages = List[Page]
+Tables = List[List[TableCell]]
+TableInputs = List[TableInput]

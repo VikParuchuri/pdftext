@@ -26,7 +26,7 @@ pdftext PDF_PATH --out_path output.txt
 - `--out_path` path to the output txt file.  If not specified, will write to stdout.
 - `--sort` will attempt to sort in reading order if specified.
 - `--keep_hyphens` will keep hyphens in the output (they will be stripped and words joined otherwise)
-- `--pages` will specify pages (comma separated) to extract
+- `--page_range` will specify pages (comma separated) to extract.  Like `0,5-10,12`.
 - `--workers` specifies the number of parallel workers to use
 - `--flatten_pdf` merges form fields into the PDF
 
@@ -42,7 +42,7 @@ pdftext PDF_PATH --out_path output.txt --json
 - `--out_path` path to the output txt file.  If not specified, will write to stdout.
 - `--json` specifies json output
 - `--sort` will attempt to sort in reading order if specified.
-- `--pages` will specify pages (comma separated) to extract
+- `--page_range` will specify pages (comma separated) to extract.  Like `0,5-10,12`.
 - `--keep_chars` will keep individual characters in the json output
 - `--workers` specifies the number of parallel workers to use
 - `--flatten_pdf` merges form fields into the PDF
@@ -88,6 +88,22 @@ from pdftext.extraction import dictionary_output
 text = dictionary_output(PDF_PATH, sort=False, page_range=[1,2,3], keep_chars=False) # Optional arguments explained above
 ```
 
+Extract text from table cells:
+
+```python
+from pdftext.extraction import table_output
+
+table_inputs = [
+  # Each dictionary entry is a single page
+  {
+    "tables": [[5,10,10,20]], # Coordinates for tables on the page
+    "img_size": [512, 512] # The size of the image the tables were detected in
+  }
+]
+text = table_output(PDF_PATH, table_inputs, page_range=[1,2,3])
+
+```
+
 If you want more customization, check out the `pdftext.extraction._get_pages` function for a starting point to dig deeper.  pdftext is a pretty thin wrapper around [pypdfium2](https://pypdfium2.readthedocs.io/en/stable/), so you might want to look at the documentation for that as well.
 
 # Benchmarks
@@ -99,8 +115,8 @@ Here are the scores, run on an M1 Macbook, without multiprocessing:
 | Library    | Time (s per page) | Alignment Score (% accuracy vs pymupdf) |
 |------------|-------------------|-----------------------------------------|
 | pymupdf    | 0.32              | --                                      |
-| pdftext    | 1.4               | 97.76                                   |
-| pdfplumber | 3.0               | 90.3                                    |
+| pdftext    | 1.36              | 97.78                                   |
+| pdfplumber | 3.16              | 90.36                                   |
 
 pdftext is approximately 2x slower than using pypdfium2 alone (if you were to extract all the same character information).
 
