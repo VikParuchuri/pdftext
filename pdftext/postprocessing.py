@@ -77,7 +77,9 @@ def sort_blocks(blocks: List, tolerance=1.25) -> List:
     vertical_groups = {}
     for block in blocks:
         bbox = block["bbox"]
-        group_key = round(bbox.y_start / tolerance) * tolerance
+        # Handle both Bbox object and raw list cases
+        y_coord = bbox[1] if isinstance(bbox, (list, tuple)) else bbox.y_start
+        group_key = round(y_coord / tolerance) * tolerance
         if group_key not in vertical_groups:
             vertical_groups[group_key] = []
         vertical_groups[group_key].append(block)
@@ -85,7 +87,8 @@ def sort_blocks(blocks: List, tolerance=1.25) -> List:
     # Sort each group horizontally and flatten the groups into a single list
     sorted_page_blocks = []
     for _, group in sorted(vertical_groups.items()):
-        sorted_group = sorted(group, key=lambda x: x["bbox"].x_start)
+        # Handle both Bbox object and raw list cases for x coordinate
+        sorted_group = sorted(group, key=lambda x: x["bbox"][0] if isinstance(x["bbox"], (list, tuple)) else x["bbox"].x_start)
         sorted_page_blocks.extend(sorted_group)
 
     return sorted_page_blocks
