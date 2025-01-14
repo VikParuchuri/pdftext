@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, TypedDict, Union
+from typing import Any, Dict, List, Optional, TypedDict, Union
 
 
 class Bbox:
@@ -119,7 +119,7 @@ class Bbox:
 
 class Char(TypedDict):
     bbox: Bbox
-    text: str
+    char: str
     rotation: float
     font: Dict[str, Union[Any, str]]
     char_idx: int
@@ -131,19 +131,22 @@ class Span(TypedDict):
     font: Dict[str, Union[Any, str]]
     font_weight: float
     font_size: float
-    chars: List[Char] | None
+    chars: List[Char]
     char_start_idx: int
     char_end_idx: int
+    rotation: int
 
 
 class Line(TypedDict):
     spans: List[Span]
     bbox: Bbox
+    rotation: int
 
 
 class Block(TypedDict):
     lines: List[Line]
     bbox: Bbox
+    rotation: int
 
 
 class Page(TypedDict):
@@ -154,13 +157,23 @@ class Page(TypedDict):
     blocks: List[Block]
     rotation: int
 
+
 class TableCell(TypedDict):
     text: str
     bbox: Bbox
 
+
 class TableInput(TypedDict):
     tables: List[List[int]]
     img_size: List[int]
+
+
+class Link(TypedDict):
+    page: int
+    bbox: List[float]
+    dest_page: Optional[int]
+    dest_pos: Optional[List[float]]
+    url: Optional[str]
 
 
 Chars = List[Char]
