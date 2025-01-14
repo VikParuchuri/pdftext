@@ -7,7 +7,7 @@ import pypdfium2 as pdfium
 import pypdfium2.raw as pdfium_c
 
 from pdftext.pdf.utils import matrix_intersection_area
-from pdftext.schema import Bbox, Link, Page, Pages
+from pdftext.schema import Bbox, Link, Page, Pages, Span
 
 
 def _get_dest_position(dest) -> Optional[Tuple[float, float]]:
@@ -187,7 +187,7 @@ def merge_links(page: Page, pdf: pdfium.PdfDocument, refs: dict):
             line['spans'] = spans
 
 
-def merge_refs(page, refs):
+def merge_refs(page: Page, refs):
     """
     We associate each reference to the nearest span.
     """
@@ -198,7 +198,7 @@ def merge_refs(page, refs):
     if not page_refs:
         return
 
-    spans = [span for block in page['blocks'] for line in block['lines'] for span in line['spans']]
+    spans: List[Span] = [span for block in page['blocks'] for line in block['lines'] for span in line['spans']]
     if not spans:
         return
 
@@ -213,12 +213,12 @@ def merge_refs(page, refs):
         spans[span_idx]['anchors'].append(f"page-{page_id}-{ref_idx}")
 
 
-def _reconstruct_spans(orig_span: dict, links: List[Link]):
+def _reconstruct_spans(orig_span: dict, links: List[Link]) -> List[Span]:
     """
     Reconstructs the spans by breaking them up into smaller spans based on the links.
     """
-    spans = []
-    span = None
+    spans: List[Span] = []
+    span: Span = None
     link_bboxes = [Bbox(link['bbox']) for link in links]
 
     for char in orig_span['chars']:
@@ -243,7 +243,8 @@ def _reconstruct_spans(orig_span: dict, links: List[Link]):
                 "char_start_idx": char["char_idx"],
                 "char_end_idx": char["char_idx"],
                 "chars": [char],
-                "url": current_url
+                "url": current_url,
+                "anchors": [],
             }
             spans.append(span)
         else:

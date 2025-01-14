@@ -32,8 +32,8 @@ def get_chars(textpage: pdfium.PdfTextPage, page_bbox: list[float], page_rotatio
         ty_start = page_height - cy_start
         ty_end = page_height - cy_end
 
-        bbox = [cx_start, min(ty_start, ty_end), cx_end, max(ty_start, ty_end)]
-        bbox = Bbox(bbox).rotate(page_width, page_height, page_rotation)
+        bbox_coords = [min(cx_start, cx_end), min(ty_start, ty_end), max(cx_start, cx_end), max(ty_start, ty_end)]
+        bbox = Bbox(bbox_coords).rotate(page_width, page_height, page_rotation)
 
         chars.append({
             "bbox": bbox,

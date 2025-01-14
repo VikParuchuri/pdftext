@@ -129,12 +129,12 @@ class Span(TypedDict):
     bbox: Bbox
     text: str
     font: Dict[str, Union[Any, str]]
-    font_weight: float
-    font_size: float
     chars: List[Char]
     char_start_idx: int
     char_end_idx: int
     rotation: int
+    url: str
+    anchors: List[str]
 
 
 class Line(TypedDict):
