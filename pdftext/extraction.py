@@ -101,8 +101,12 @@ def dictionary_output(
         workers=None
 ) -> Pages:
     pages: Pages = _get_pages(pdf_path, page_range, workers=workers, flatten_pdf=flatten_pdf, quote_loosebox=quote_loosebox)
+
     if not disable_links:
-        add_links_and_refs(pages, _load_pdf(pdf_path, False))
+        pdf = _load_pdf(pdf_path, False)
+        add_links_and_refs(pages, pdf)
+        pdf.close()
+
     for page in pages:
         page_width, page_height = page["width"], page["height"]
         for block in page["blocks"]:

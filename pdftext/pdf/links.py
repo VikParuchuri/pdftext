@@ -18,13 +18,8 @@ def _get_dest_position(dest) -> Optional[Tuple[float, float]]:
     y_coord = ctypes.c_float()
     zoom_level = ctypes.c_float()
     success = pdfium_c.FPDFDest_GetLocationInPage(
-        dest,
-        ctypes.byref(has_x),
-        ctypes.byref(has_y),
-        ctypes.byref(has_zoom),
-        ctypes.byref(x_coord),
-        ctypes.byref(y_coord),
-        ctypes.byref(zoom_level)
+        dest, has_x, has_y, has_zoom,
+        x_coord, y_coord, zoom_level
     )
     if success:
         if has_x.value and has_y.value:
@@ -78,7 +73,7 @@ def get_links(page_idx: int, pdf: pdfium.PdfDocument) -> List[Link]:
             continue
 
         fs_rect = pdfium_c.FS_RECTF()
-        success = pdfium_c.FPDFAnnot_GetRect(annot, ctypes.byref(fs_rect))
+        success = pdfium_c.FPDFAnnot_GetRect(annot, fs_rect)
         if not success:
             continue
 
