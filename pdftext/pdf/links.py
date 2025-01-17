@@ -2,12 +2,11 @@ import ctypes
 import math
 from typing import Dict, List, Optional, Tuple
 
-import numpy as np
 import pypdfium2 as pdfium
 import pypdfium2.raw as pdfium_c
 
 from pdftext.pdf.utils import matrix_intersection_area
-from pdftext.schema import Bbox, Link, Page, Pages, Span
+from pdftext.schema import Bbox, Link, Page, PageReference, Pages, Span
 
 
 def _get_dest_position(dest) -> Optional[Tuple[float, float]]:
@@ -122,7 +121,7 @@ def get_links(page_idx: int, pdf: pdfium.PdfDocument) -> List[Link]:
     return urls
 
 
-def merge_links(page: Page, pdf: pdfium.PdfDocument, refs: dict):
+def merge_links(page: Page, pdf: pdfium.PdfDocument, refs: PageReference):
     """
     Merges links with spans. Some spans can also have multiple links associated with them.
     We break up the spans and reconstruct them taking the links into account.
@@ -146,11 +145,9 @@ def merge_links(page: Page, pdf: pdfium.PdfDocument, refs: dict):
         max_intersection = intersection_link.argmax()
         span = spans[max_intersection]
 
-        if link['dest_page'] is None:
-            continue
-
         dest_page = link['dest_page']
-        refs.setdefault(dest_page, [])
+        if dest_page is None:
+            continue
 
         if link['dest_pos']:
             dest_pos = link['dest_pos']
@@ -161,10 +158,8 @@ def merge_links(page: Page, pdf: pdfium.PdfDocument, refs: dict):
             # if we don't have a dest pos, we just link to the top of the page
             dest_pos = [0.0, 0.0]
 
-        if dest_pos not in refs[dest_page]:
-            refs[dest_page].append(dest_pos)
-
-        link['url'] = f"#page-{dest_page}-{refs[dest_page].index(dest_pos)}"
+        ref = refs.add_ref(dest_page, dest_pos)
+        link['url'] = ref.url
 
         span_link_map.setdefault(max_intersection, [])
         span_link_map[max_intersection].append(link)
@@ -180,32 +175,6 @@ def merge_links(page: Page, pdf: pdfium.PdfDocument, refs: dict):
                     spans.append(span)
                 span_idx += 1
             line['spans'] = spans
-
-
-def merge_refs(page: Page, refs):
-    """
-    We associate each reference to the nearest span.
-    """
-
-    page_id = page["page"]
-
-    page_refs = refs.get(page_id, [])
-    if not page_refs:
-        return
-
-    spans: List[Span] = [span for block in page['blocks'] for line in block['lines'] for span in line['spans']]
-    if not spans:
-        return
-
-    span_starts = np.array([span['bbox'][:2] for span in spans])
-    ref_starts = np.array(page_refs)
-
-    distances = np.linalg.norm(span_starts[:, np.newaxis, :] - ref_starts[np.newaxis, :, :], axis=2)
-
-    for ref_idx in range(len(ref_starts)):
-        span_idx = np.argmin(distances[:, ref_idx])
-        spans[span_idx].setdefault('anchors', [])
-        spans[span_idx]['anchors'].append(f"page-{page_id}-{ref_idx}")
 
 
 def _reconstruct_spans(orig_span: dict, links: List[Link]) -> List[Span]:
@@ -239,7 +208,6 @@ def _reconstruct_spans(orig_span: dict, links: List[Link]) -> List[Span]:
                 "char_end_idx": char["char_idx"],
                 "chars": [char],
                 "url": current_url,
-                "anchors": [],
             }
             spans.append(span)
         else:
@@ -252,9 +220,10 @@ def _reconstruct_spans(orig_span: dict, links: List[Link]) -> List[Span]:
 
 
 def add_links_and_refs(pages: Pages, pdf_doc: pdfium.PdfDocument):
-    refs: Dict[int, List[List[float]]] = {}
+    refs = PageReference()
 
     for page in pages:
         merge_links(page, pdf_doc, refs)
+
     for page in pages:
-        merge_refs(page, refs)
+        page["refs"] = refs.get_refs(page["page"])
