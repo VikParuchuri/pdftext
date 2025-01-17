@@ -146,20 +146,18 @@ def merge_links(page: Page, pdf: pdfium.PdfDocument, refs: PageReference):
         span = spans[max_intersection]
 
         dest_page = link['dest_page']
-        if dest_page is None:
-            continue
+        if dest_page is not None:
+            if link['dest_pos']:
+                dest_pos = link['dest_pos']
+            else:
+                # Don't link to self if there is no dest_pos
+                if dest_page == page_id:
+                    continue
+                # if we don't have a dest pos, we just link to the top of the page
+                dest_pos = [0.0, 0.0]
 
-        if link['dest_pos']:
-            dest_pos = link['dest_pos']
-        else:
-            # Don't link to self if there is no dest_pos
-            if dest_page == page_id:
-                continue
-            # if we don't have a dest pos, we just link to the top of the page
-            dest_pos = [0.0, 0.0]
-
-        ref = refs.add_ref(dest_page, dest_pos)
-        link['url'] = ref.url
+            ref = refs.add_ref(dest_page, dest_pos)
+            link['url'] = ref.url
 
         span_link_map.setdefault(max_intersection, [])
         span_link_map[max_intersection].append(link)
