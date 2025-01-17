@@ -193,7 +193,8 @@ class Reference:
 
 
 class PageReference:
-    page_ref_map: Dict[int, List[Reference]] = {}
+    def __init__(self):
+        self.page_ref_map: Dict[int, List[Reference]] = {}
 
     def get_refs(self, page: int) -> List[Reference]:
         return self.page_ref_map.get(page, [])
