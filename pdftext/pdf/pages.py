@@ -25,7 +25,6 @@ def get_spans(chars: Chars) -> Spans:
             "char_end_idx": char["char_idx"],
             "chars": [char],
             "url": '',
-            "anchors": []
         })
 
     for char in chars:
