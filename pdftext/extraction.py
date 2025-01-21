@@ -7,6 +7,7 @@ from typing import List
 
 import pypdfium2 as pdfium
 
+from pdftext.pdf.links import add_links_and_refs
 from pdftext.pdf.pages import get_pages
 from pdftext.postprocessing import handle_hyphens, merge_text, postprocess_text, sort_blocks
 from pdftext.schema import Pages, TableInputs, Tables
@@ -96,9 +97,16 @@ def dictionary_output(
         keep_chars=False,
         flatten_pdf=False,
         quote_loosebox=True,
+        disable_links=False,
         workers=None
 ) -> Pages:
     pages: Pages = _get_pages(pdf_path, page_range, workers=workers, flatten_pdf=flatten_pdf, quote_loosebox=quote_loosebox)
+
+    if not disable_links:
+        pdf = _load_pdf(pdf_path, False)
+        add_links_and_refs(pages, pdf)
+        pdf.close()
+
     for page in pages:
         page_width, page_height = page["width"], page["height"]
         for block in page["blocks"]:
@@ -122,6 +130,7 @@ def dictionary_output(
             page["bbox"] = [page["bbox"][2], page["bbox"][3], page["bbox"][0], page["bbox"][1]]
     return pages
 
+
 def table_output(
     pdf_path: str,
     table_inputs: TableInputs,
@@ -144,4 +153,3 @@ def table_output(
         assert len(tables) == len(table_input["tables"]), "Number of tables and table inputs must match"
         out_tables.append(tables)
     return out_tables
-

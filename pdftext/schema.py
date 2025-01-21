@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, TypedDict, Union
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, TypedDict, Union
 
 
 class Bbox:
@@ -119,7 +120,7 @@ class Bbox:
 
 class Char(TypedDict):
     bbox: Bbox
-    text: str
+    char: str
     rotation: float
     font: Dict[str, Union[Any, str]]
     char_idx: int
@@ -129,21 +130,23 @@ class Span(TypedDict):
     bbox: Bbox
     text: str
     font: Dict[str, Union[Any, str]]
-    font_weight: float
-    font_size: float
-    chars: List[Char] | None
+    chars: List[Char]
     char_start_idx: int
     char_end_idx: int
+    rotation: int
+    url: str
 
 
 class Line(TypedDict):
     spans: List[Span]
     bbox: Bbox
+    rotation: int
 
 
 class Block(TypedDict):
     lines: List[Line]
     bbox: Bbox
+    rotation: int
 
 
 class Page(TypedDict):
@@ -153,14 +156,63 @@ class Page(TypedDict):
     height: int
     blocks: List[Block]
     rotation: int
+    refs: List[Reference]
+
 
 class TableCell(TypedDict):
     text: str
     bbox: Bbox
 
+
 class TableInput(TypedDict):
     tables: List[List[int]]
     img_size: List[int]
+
+
+class Link(TypedDict):
+    page: int
+    bbox: List[float]
+    dest_page: Optional[int]
+    dest_pos: Optional[List[float]]
+    url: Optional[str]
+
+
+@dataclass
+class Reference:
+    idx: int
+    page: int
+    coord: List[float]
+
+    @property
+    def ref(self):
+        return f"page-{self.page}-{self.idx}"
+
+    @property
+    def url(self):
+        return f"#{self.ref}"
+
+
+class PageReference:
+    def __init__(self):
+        self.page_ref_map: Dict[int, List[Reference]] = {}
+
+    def get_refs(self, page: int) -> List[Reference]:
+        return self.page_ref_map.get(page, [])
+
+    def add_ref(self, page: int, coord: List[float]) -> Reference:
+        self.page_ref_map.setdefault(page, [])
+        ref = self.check_ref(page, coord)
+        if ref is None:
+            ref = Reference(idx=len(self.page_ref_map[page]), page=page, coord=coord)
+            self.page_ref_map[page].append(ref)
+        return ref
+
+    def check_ref(self, page: int, coord: List[float]) -> Optional[Reference]:
+        refs = self.page_ref_map.get(page, [])
+        for ref in refs:
+            if ref.coord == coord:
+                return ref
+        return None
 
 
 Chars = List[Char]

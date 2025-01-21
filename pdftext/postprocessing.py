@@ -1,7 +1,8 @@
-from typing import List, Dict
 import unicodedata
+from typing import List
 
-from pdftext.pdf.utils import SPACES, LINE_BREAKS, TABS, WHITESPACE_CHARS
+from pdftext.pdf.utils import LINE_BREAKS, SPACES, TABS, WHITESPACE_CHARS
+from pdftext.schema import Page
 
 LIGATURES = {
     "ﬀ": "ff",
@@ -91,7 +92,7 @@ def sort_blocks(blocks: List, tolerance=1.25) -> List:
     return sorted_page_blocks
 
 
-def merge_text(page: Dict, sort=False, hyphens=False) -> str:
+def merge_text(page: Page, sort=False, hyphens=False) -> str:
     text = ""
     if sort:
         page["blocks"] = sort_blocks(page["blocks"])

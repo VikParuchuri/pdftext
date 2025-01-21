@@ -23,7 +23,8 @@ def get_spans(chars: Chars) -> Spans:
             "font": char["font"],
             "char_start_idx": char["char_idx"],
             "char_end_idx": char["char_idx"],
-            "chars": [char]
+            "chars": [char],
+            "url": '',
         })
 
     for char in chars:
