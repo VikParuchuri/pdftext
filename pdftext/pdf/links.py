@@ -184,7 +184,7 @@ def _reconstruct_spans(orig_span: dict, links: List[Link]) -> List[Span]:
     link_bboxes = [Bbox(link['bbox']) for link in links]
 
     for char in orig_span['chars']:
-        char_bbox = Bbox(char['bbox'])
+        char_bbox = Bbox(char['bbox'].bbox)
         intersections: List[Tuple[float, Link]] = []
         for i, link_bbox in enumerate(link_bboxes):
             area = link_bbox.intersection_area(char_bbox)
