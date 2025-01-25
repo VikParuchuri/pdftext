@@ -5,8 +5,12 @@ from typing import Any, Dict, List, Optional, TypedDict, Union
 
 
 class Bbox:
-    def __init__(self, bbox: List[float]):
+    def __init__(self, bbox: List[float], ensure_nonzero_area=False):
+        if ensure_nonzero_area:
+            bbox[2] = max(bbox[0], bbox[2] + 1)
+            bbox[3] = max(bbox[1], bbox[3] + 1)
         self.bbox = bbox
+        self.ensure_nonzero_area = ensure_nonzero_area
 
     def __getitem__(self, item):
         return self.bbox[item]
