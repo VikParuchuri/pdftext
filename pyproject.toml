@@ -10,9 +10,6 @@ keywords = ["pdf", "text", "extraction"]
 packages = [
     {include = "pdftext"}
 ]
-include = [
-    "extract_text.py"
-]
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -35,4 +32,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-pdftext = "extract_text:main"
+pdftext = "pdftext.scripts.extract_text:extract_text_cli"
