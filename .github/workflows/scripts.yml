@@ -1,9 +1,10 @@
-name: Integration test
+name: Script test
 
 on: [push]
 
 env:
   TORCH_DEVICE: "cpu"
+  PYTHONIOENCODING: "utf-8"
 
 jobs:
   build:
@@ -18,13 +19,10 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: 3.11
-
       - name: Install Python dependencies
         run: |
           pip install poetry
           poetry install
-
-      - name: Run benchmark
+      - name: Run script
         run: |
-          poetry run python benchmark/benchmark.py --max 5 --result_path results --pdftext_only
-          poetry run python benchmark/verify_benchmark_scores.py results/results.json
+          poetry run pdftext benchmark/adversarial_short.pdf
