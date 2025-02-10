@@ -6,7 +6,7 @@ from typing import List
 
 import pypdfium2 as pdfium
 
-from pdftext.pdf.chars import get_chars
+from pdftext.pdf.chars import get_chars, deduplicate_chars
 from pdftext.pdf.utils import flatten
 from pdftext.schema import Blocks, Chars, Line, Lines, Pages, Span, Spans
 
@@ -211,7 +211,7 @@ def get_pages(
         except:
             pass
 
-        chars = get_chars(textpage, page_bbox, page_rotation, quote_loosebox)
+        chars = deduplicate_chars(get_chars(textpage, page_bbox, page_rotation, quote_loosebox))
         spans = get_spans(chars)
         lines = get_lines(spans)
         blocks = get_blocks(lines)
