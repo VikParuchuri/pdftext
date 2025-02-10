@@ -40,6 +40,7 @@ def _rect_to_scaled_bbox(rect, page_bbox, page_rotation) -> List[float]:
     ty_end = page_height - cy_end
 
     bbox = [min(cx_start, cx_end), min(ty_start, ty_end), max(cx_start, cx_end), max(ty_start, ty_end)]
+    bbox = [round(x, 0) for x in bbox]
     return Bbox(bbox).rotate(page_width, page_height, page_rotation).bbox
 
 
