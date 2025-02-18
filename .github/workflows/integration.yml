@@ -3,7 +3,7 @@ name: Integration test
 on: [push]
 
 env:
-  TORCH_DEVICE: "cpu"
+  PYTHONIOENCODING: "utf-8"
 
 jobs:
   build:

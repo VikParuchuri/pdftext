@@ -32,7 +32,6 @@ def get_chars(textpage: pdfium.PdfTextPage, page_bbox: list[float], page_rotatio
         ty_end = page_height - cy_end
 
         bbox_coords = [min(cx_start, cx_end), min(ty_start, ty_end), max(cx_start, cx_end), max(ty_start, ty_end)]
-        bbox_coords = [round(x, 0) for x in bbox_coords]
         bbox = Bbox(bbox_coords).rotate(page_width, page_height, page_rotation)
 
         fontname, fontflag = get_fontname(textpage, i)
@@ -104,7 +103,11 @@ def deduplicate_chars(chars: Chars) -> Chars:
     seen = {}
     deduped = []
     for word in words:
-        key = f"{word['bbox'].bbox}-{word['text'].strip()}-{word['rotation']}-{word['font']['name']}-{word['font']['flags']}-{word['font']['size']}-{word['font']['weight']}"
+        # Round the bbox coordinates
+        bbox = word['bbox'].bbox
+        bbox = [round(x, 0) for x in bbox]
+
+        key = f"{bbox}-{word['text']}-{word['rotation']}-{word['font']['name']}-{word['font']['flags']}-{word['font']['size']}-{word['font']['weight']}"
         if key not in seen:
             seen[key] = True
             deduped.append(word)

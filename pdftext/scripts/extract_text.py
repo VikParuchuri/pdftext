@@ -51,5 +51,5 @@ def extract_text_cli(
     if out_path is None:
         print(text)
     else:
-        with open(out_path, "w+") as f:
+        with open(out_path, "w+", encoding="utf-8") as f:
             f.write(text)
