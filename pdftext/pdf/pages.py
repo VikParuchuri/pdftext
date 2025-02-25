@@ -10,6 +10,35 @@ from pdftext.pdf.chars import get_chars, deduplicate_chars
 from pdftext.pdf.utils import flatten
 from pdftext.schema import Blocks, Chars, Line, Lines, Pages, Span, Spans
 
+def assign_superscripts(lines: Lines, height_threshold: float = 0.8):
+    for line in lines:
+        prev_span = None
+        if len(line["spans"]) < 2:
+            continue
+
+        for i, span in enumerate(line["spans"]):
+            is_first = i == 0 or not prev_span["text"].strip()
+            is_last = i == len(line["spans"]) - 1 or not line["spans"][i + 1]["text"].strip()
+            span_height = span["bbox"].height
+            span_top = span["bbox"].y_start
+
+            prev_fullheight = is_first or span_height / max(1, prev_span["bbox"].height) <= height_threshold
+            next_fullheight = is_last or span_height / max(1, line["spans"][i + 1]["bbox"].height) <= height_threshold
+
+            prev_above = is_first or span_top < prev_span["bbox"].y_start
+            next_above = is_last or span_top < line["spans"][i + 1]["bbox"].y_start
+
+            if all([
+                prev_fullheight,
+                next_fullheight,
+                prev_above,
+                next_above,
+                span["text"].strip()
+            ]):
+                span["superscript"] = True
+
+            prev_span = span
+
 
 def get_spans(chars: Chars) -> Spans:
     spans: Spans = []
@@ -45,7 +74,7 @@ def get_spans(chars: Chars) -> Spans:
             continue
 
         # we also break on hyphenation
-        if span['text'].endswith("\x02"):
+        if span['text'].endswith("\x02") or span["text"].endswith("\n"):
             span_break()
             continue
 
@@ -214,6 +243,7 @@ def get_pages(
         chars = deduplicate_chars(get_chars(textpage, page_bbox, page_rotation, quote_loosebox))
         spans = get_spans(chars)
         lines = get_lines(spans)
+        assign_superscripts(lines)
         blocks = get_blocks(lines)
 
         pages.append({

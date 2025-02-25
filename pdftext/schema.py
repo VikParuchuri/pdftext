@@ -16,6 +16,9 @@ class Bbox:
     def __getitem__(self, item):
         return self.bbox[item]
 
+    def __repr__(self):
+        return f"Bbox({self.bbox})"
+
     @property
     def height(self):
         return self.bbox[3] - self.bbox[1]
@@ -140,6 +143,7 @@ class Span(TypedDict):
     char_end_idx: int
     rotation: int
     url: str
+    superscript: bool
 
 
 class Line(TypedDict):
