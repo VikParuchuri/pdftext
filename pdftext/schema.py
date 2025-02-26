@@ -144,6 +144,7 @@ class Span(TypedDict):
     rotation: int
     url: str
     superscript: bool
+    subscript: bool
 
 
 class Line(TypedDict):

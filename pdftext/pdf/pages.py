@@ -10,7 +10,7 @@ from pdftext.pdf.chars import get_chars, deduplicate_chars
 from pdftext.pdf.utils import flatten
 from pdftext.schema import Blocks, Chars, Line, Lines, Pages, Span, Spans
 
-def assign_superscripts(lines: Lines, height_threshold: float = 0.8):
+def assign_scripts(lines: Lines, height_threshold: float = 0.8, line_distance_threshold: float = 0.1):
     for line in lines:
         prev_span = None
         if len(line["spans"]) < 2:
@@ -25,28 +25,43 @@ def assign_superscripts(lines: Lines, height_threshold: float = 0.8):
             is_last = i == len(line["spans"]) - 1 or not line["spans"][i + 1]["text"].strip()
             span_height = span["bbox"].height
             span_top = span["bbox"].y_start
+            span_bottom = span["bbox"].y_end
 
             line_fullheight = span_height / max(1, line["bbox"].height) <= height_threshold
             next_fullheight = is_last or span_height / max(1, line["spans"][i + 1]["bbox"].height) <= height_threshold
             prev_fullheight = is_first or span_height / max(1, prev_span["bbox"].height) <= height_threshold
 
-            above = any([span_top < s["bbox"].y_start for j, s in enumerate(line["spans"]) if j != i])
+            above = any([span_top < (s["bbox"].y_start - s["bbox"].height * line_distance_threshold) for j, s in enumerate(line["spans"]) if j != i])
             prev_above = is_first or span_top < prev_span["bbox"].y_start
             next_above = is_last or span_top < line["spans"][i + 1]["bbox"].y_start
+
+            below = any([span_bottom > (s["bbox"].y_end + s["bbox"].height * line_distance_threshold) for j, s in enumerate(line["spans"]) if j != i])
+            prev_below = is_first or span_bottom > prev_span["bbox"].y_end
+            next_below = is_last or span_bottom > line["spans"][i + 1]["bbox"].y_end
+
+            span_text_okay = (len(span["text"].strip()) == 1 or span["text"].strip().isdigit()) and span["text"].strip().isalnum()
 
             if all([
                 (prev_fullheight or next_fullheight),
                 (prev_above or next_above),
                 above,
                 line_fullheight,
-                (len(span["text"].strip()) == 1 or span["text"].strip().isdigit())
+                span_text_okay
             ]):
                 span["superscript"] = True
+            elif all([
+                (prev_fullheight or next_fullheight),
+                (prev_below or next_below),
+                below,
+                line_fullheight,
+                span_text_okay
+            ]):
+                span["subscript"] = True
 
             prev_span = span
 
 
-def get_spans(chars: Chars, superscript_height_threshold: float = 0.8) -> Spans:
+def get_spans(chars: Chars, superscript_height_threshold: float = 0.8, line_distance_threshold: float = 0.1) -> Spans:
     spans: Spans = []
     span: Span = None
 
@@ -86,7 +101,7 @@ def get_spans(chars: Chars, superscript_height_threshold: float = 0.8) -> Spans:
 
         # Character is likely a superscript
         if all([
-            char["bbox"][1] < span["bbox"][1], # char top is above span
+            char["bbox"][1] < (span["bbox"][1] - span["bbox"].height * line_distance_threshold), # char top is above span
             char["bbox"][3] < (span["bbox"].height * superscript_height_threshold) + span["bbox"][1], # char bottom is not full line height
             char["bbox"][0] > span["bbox"][2], # char is to the right of the span
         ]):
@@ -234,7 +249,8 @@ def get_pages(
     page_range: range,
     flatten_pdf: bool = True,
     quote_loosebox: bool =True,
-    superscript_height_threshold: float = 0.8
+    superscript_height_threshold: float = 0.7,
+    line_distance_threshold: float = 0.1,
 ) -> Pages:
     pages: Pages = []
 
@@ -257,9 +273,9 @@ def get_pages(
             pass
 
         chars = deduplicate_chars(get_chars(textpage, page_bbox, page_rotation, quote_loosebox))
-        spans = get_spans(chars, superscript_height_threshold=superscript_height_threshold)
+        spans = get_spans(chars, superscript_height_threshold=superscript_height_threshold, line_distance_threshold=line_distance_threshold)
         lines = get_lines(spans)
-        assign_superscripts(lines, height_threshold=superscript_height_threshold)
+        assign_scripts(lines, height_threshold=superscript_height_threshold, line_distance_threshold=line_distance_threshold)
         blocks = get_blocks(lines)
 
         pages.append({
