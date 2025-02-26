@@ -16,31 +16,37 @@ def assign_superscripts(lines: Lines, height_threshold: float = 0.8):
         if len(line["spans"]) < 2:
             continue
 
+        # Skip vertical lines
+        if line["bbox"].height > line["bbox"].width:
+            continue
+
         for i, span in enumerate(line["spans"]):
             is_first = i == 0 or not prev_span["text"].strip()
             is_last = i == len(line["spans"]) - 1 or not line["spans"][i + 1]["text"].strip()
             span_height = span["bbox"].height
             span_top = span["bbox"].y_start
 
-            prev_fullheight = is_first or span_height / max(1, prev_span["bbox"].height) <= height_threshold
+            line_fullheight = span_height / max(1, line["bbox"].height) <= height_threshold
             next_fullheight = is_last or span_height / max(1, line["spans"][i + 1]["bbox"].height) <= height_threshold
+            prev_fullheight = is_first or span_height / max(1, prev_span["bbox"].height) <= height_threshold
 
+            above = any([span_top < s["bbox"].y_start for j, s in enumerate(line["spans"]) if j != i])
             prev_above = is_first or span_top < prev_span["bbox"].y_start
             next_above = is_last or span_top < line["spans"][i + 1]["bbox"].y_start
 
             if all([
-                prev_fullheight,
-                next_fullheight,
-                prev_above,
-                next_above,
-                span["text"].strip()
+                (prev_fullheight or next_fullheight),
+                (prev_above or next_above),
+                above,
+                line_fullheight,
+                (len(span["text"].strip()) == 1 or span["text"].strip().isdigit())
             ]):
                 span["superscript"] = True
 
             prev_span = span
 
 
-def get_spans(chars: Chars) -> Spans:
+def get_spans(chars: Chars, superscript_height_threshold: float = 0.8) -> Spans:
     spans: Spans = []
     span: Span = None
 
@@ -74,7 +80,16 @@ def get_spans(chars: Chars) -> Spans:
             continue
 
         # we also break on hyphenation
-        if span['text'].endswith("\x02") or span["text"].endswith("\n"):
+        if span['text'].endswith("\x02"):
+            span_break()
+            continue
+
+        # Character is likely a superscript
+        if all([
+            char["bbox"][1] < span["bbox"][1], # char top is above span
+            char["bbox"][3] < (span["bbox"].height * superscript_height_threshold) + span["bbox"][1], # char bottom is not full line height
+            char["bbox"][0] > span["bbox"][2], # char is to the right of the span
+        ]):
             span_break()
             continue
 
@@ -218,7 +233,8 @@ def get_pages(
     pdf: pdfium.PdfDocument,
     page_range: range,
     flatten_pdf: bool = True,
-    quote_loosebox=True
+    quote_loosebox: bool =True,
+    superscript_height_threshold: float = 0.8
 ) -> Pages:
     pages: Pages = []
 
@@ -241,9 +257,9 @@ def get_pages(
             pass
 
         chars = deduplicate_chars(get_chars(textpage, page_bbox, page_rotation, quote_loosebox))
-        spans = get_spans(chars)
+        spans = get_spans(chars, superscript_height_threshold=superscript_height_threshold)
         lines = get_lines(spans)
-        assign_superscripts(lines)
+        assign_superscripts(lines, height_threshold=superscript_height_threshold)
         blocks = get_blocks(lines)
 
         pages.append({
