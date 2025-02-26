@@ -3,12 +3,21 @@ from __future__ import annotations
 import math
 import statistics
 from typing import List
+import unicodedata
 
 import pypdfium2 as pdfium
 
 from pdftext.pdf.chars import get_chars, deduplicate_chars
 from pdftext.pdf.utils import flatten
 from pdftext.schema import Blocks, Chars, Line, Lines, Pages, Span, Spans
+
+
+def is_math_symbol(char):
+    if len(char) != 1:
+        return False
+
+    category = unicodedata.category(char)
+    return category == 'Sm'
 
 def assign_scripts(lines: Lines, height_threshold: float = 0.8, line_distance_threshold: float = 0.1):
     for line in lines:
@@ -39,7 +48,11 @@ def assign_scripts(lines: Lines, height_threshold: float = 0.8, line_distance_th
             prev_below = is_first or span_bottom > prev_span["bbox"].y_end
             next_below = is_last or span_bottom > line["spans"][i + 1]["bbox"].y_end
 
-            span_text_okay = (len(span["text"].strip()) == 1 or span["text"].strip().isdigit()) and span["text"].strip().isalnum()
+            span_text = span["text"].strip()
+            span_text_okay = all([
+                (len(span_text) == 1 or span_text.isdigit()), # Ensure that the span text is a single char or a number
+                span_text.isalnum() or is_math_symbol(span_text) # Ensure that the span text is an alphanumeric or a math symbol
+            ])
 
             if all([
                 (prev_fullheight or next_fullheight),
