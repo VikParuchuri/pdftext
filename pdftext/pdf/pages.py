@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import statistics
 from typing import List
+import unicodedata
 
 import pypdfium2 as pdfium
 
@@ -11,7 +12,69 @@ from pdftext.pdf.utils import flatten
 from pdftext.schema import Blocks, Chars, Line, Lines, Pages, Span, Spans
 
 
-def get_spans(chars: Chars) -> Spans:
+def is_math_symbol(char):
+    if len(char) != 1:
+        return False
+
+    category = unicodedata.category(char)
+    return category == 'Sm'
+
+def assign_scripts(lines: Lines, height_threshold: float = 0.8, line_distance_threshold: float = 0.1):
+    for line in lines:
+        prev_span = None
+        if len(line["spans"]) < 2:
+            continue
+
+        # Skip vertical lines
+        if line["bbox"].height > line["bbox"].width:
+            continue
+
+        for i, span in enumerate(line["spans"]):
+            is_first = i == 0 or not prev_span["text"].strip()
+            is_last = i == len(line["spans"]) - 1 or not line["spans"][i + 1]["text"].strip()
+            span_height = span["bbox"].height
+            span_top = span["bbox"].y_start
+            span_bottom = span["bbox"].y_end
+
+            line_fullheight = span_height / max(1, line["bbox"].height) <= height_threshold
+            next_fullheight = is_last or span_height / max(1, line["spans"][i + 1]["bbox"].height) <= height_threshold
+            prev_fullheight = is_first or span_height / max(1, prev_span["bbox"].height) <= height_threshold
+
+            above = any([span_top < (s["bbox"].y_start - s["bbox"].height * line_distance_threshold) for j, s in enumerate(line["spans"]) if j != i])
+            prev_above = is_first or span_top < prev_span["bbox"].y_start
+            next_above = is_last or span_top < line["spans"][i + 1]["bbox"].y_start
+
+            below = any([span_bottom > (s["bbox"].y_end + s["bbox"].height * line_distance_threshold) for j, s in enumerate(line["spans"]) if j != i])
+            prev_below = is_first or span_bottom > prev_span["bbox"].y_end
+            next_below = is_last or span_bottom > line["spans"][i + 1]["bbox"].y_end
+
+            span_text = span["text"].strip()
+            span_text_okay = all([
+                (len(span_text) == 1 or span_text.isdigit()), # Ensure that the span text is a single char or a number
+                span_text.isalnum() or is_math_symbol(span_text) # Ensure that the span text is an alphanumeric or a math symbol
+            ])
+
+            if all([
+                (prev_fullheight or next_fullheight),
+                (prev_above or next_above),
+                above,
+                line_fullheight,
+                span_text_okay
+            ]):
+                span["superscript"] = True
+            elif all([
+                (prev_fullheight or next_fullheight),
+                (prev_below or next_below),
+                below,
+                line_fullheight,
+                span_text_okay
+            ]):
+                span["subscript"] = True
+
+            prev_span = span
+
+
+def get_spans(chars: Chars, superscript_height_threshold: float = 0.8, line_distance_threshold: float = 0.1) -> Spans:
     spans: Spans = []
     span: Span = None
 
@@ -46,6 +109,15 @@ def get_spans(chars: Chars) -> Spans:
 
         # we also break on hyphenation
         if span['text'].endswith("\x02"):
+            span_break()
+            continue
+
+        # Character is likely a superscript
+        if all([
+            char["bbox"][1] < (span["bbox"][1] - span["bbox"].height * line_distance_threshold), # char top is above span
+            char["bbox"][3] < (span["bbox"].height * superscript_height_threshold) + span["bbox"][1], # char bottom is not full line height
+            char["bbox"][0] > span["bbox"][2], # char is to the right of the span
+        ]):
             span_break()
             continue
 
@@ -189,7 +261,9 @@ def get_pages(
     pdf: pdfium.PdfDocument,
     page_range: range,
     flatten_pdf: bool = True,
-    quote_loosebox=True
+    quote_loosebox: bool =True,
+    superscript_height_threshold: float = 0.7,
+    line_distance_threshold: float = 0.1,
 ) -> Pages:
     pages: Pages = []
 
@@ -212,8 +286,9 @@ def get_pages(
             pass
 
         chars = deduplicate_chars(get_chars(textpage, page_bbox, page_rotation, quote_loosebox))
-        spans = get_spans(chars)
+        spans = get_spans(chars, superscript_height_threshold=superscript_height_threshold, line_distance_threshold=line_distance_threshold)
         lines = get_lines(spans)
+        assign_scripts(lines, height_threshold=superscript_height_threshold, line_distance_threshold=line_distance_threshold)
         blocks = get_blocks(lines)
 
         pages.append({

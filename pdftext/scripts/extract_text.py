@@ -43,10 +43,25 @@ def extract_text_cli(
         assert all(0 <= p <= doc_len for p in pages), "Invalid page number(s) provided"
 
     if kwargs["json"]:
-        text = dictionary_output(pdf_path, sort=kwargs["sort"], page_range=pages, flatten_pdf=kwargs["flatten_pdf"], keep_chars=kwargs["keep_chars"], workers=kwargs["workers"])
+        text = dictionary_output(
+            pdf_path,
+            sort=kwargs["sort"],
+            page_range=pages,
+            flatten_pdf=kwargs["flatten_pdf"],
+            keep_chars=kwargs["keep_chars"],
+            workers=kwargs["workers"],
+            disable_links=True
+        )
         text = json.dumps(text)
     else:
-        text = plain_text_output(pdf_path, sort=kwargs["sort"], hyphens=kwargs["keep_hyphens"], page_range=pages, flatten_pdf=kwargs["flatten_pdf"], workers=kwargs["workers"])
+        text = plain_text_output(
+            pdf_path,
+            sort=kwargs["sort"],
+            hyphens=kwargs["keep_hyphens"],
+            page_range=pages,
+            flatten_pdf=kwargs["flatten_pdf"],
+            workers=kwargs["workers"]
+        )
 
     if out_path is None:
         print(text)

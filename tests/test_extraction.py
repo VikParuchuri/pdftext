@@ -25,3 +25,13 @@ def test_keep_chars(pdf_path):
     pages: Pages = dictionary_output(pdf_path, keep_chars=True)
     assert "Subspace" in pages[0]["blocks"][0]["lines"][0]["spans"][0]["text"]
     assert "bbox" in pages[0]["blocks"][0]["lines"][0]["spans"][0]["chars"][0]
+
+def test_superscripts(pdf_path):
+    pages: Pages = dictionary_output(pdf_path)
+    for page in pages:
+        for block in page["blocks"]:
+            for line in block["lines"]:
+                for span in line["spans"]:
+                    if span["text"] == "∞":
+                        assert span["superscript"] is True
+                        return True
