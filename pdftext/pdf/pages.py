@@ -107,13 +107,8 @@ def get_spans(chars: Chars, superscript_height_threshold: float = 0.8, line_dist
             span_break()
             continue
 
-        # we also break on hyphenation
+        # we break on hyphenation or newline
         if span['text'].endswith("\x02") or span['text'].endswith("\n"):
-            span_break()
-            continue
-
-        # sometimes pdfium doesn't inject a linebreak, so we check the span positions
-        if char["bbox"].y_start > span["bbox"].y_end:
             span_break()
             continue
 
