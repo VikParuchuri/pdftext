@@ -8,7 +8,33 @@ Text extraction like [PyMuPDF](https://github.com/pymupdf/PyMuPDF), but without 
 
 # Installation
 
-You'll need python 3.9+ first.  Then run `pip install pdftext`.
+You'll need python 3.10+ first.  Then run `pip install pdftext`.
+
+# Development
+
+To set up the development environment:
+
+1. Clone the repository:
+```shell
+git clone https://github.com/VikParuchuri/pdftext.git
+cd pdftext
+```
+
+2. Create and activate a virtual environment:
+```shell
+python -m venv .venv
+source .venv/bin/activate  # On Windows use `.venv\Scripts\activate`
+```
+
+3. Install dependencies using UV:
+```shell
+uv pip install -r requirements-dev.txt
+```
+
+4. Run tests:
+```shell
+uv run pytest
+```
 
 # Usage
 
@@ -132,12 +158,14 @@ For the alignment score, I extracted the text, then used the rapidfuzz library t
 
 ## Running benchmarks
 
-You can run the benchmarks yourself.  To do so, you have to first install pdftext manually.  The install assumes you have poetry and Python 3.9+ installed.
+You can run the benchmarks yourself.  To do so, you have to first install pdftext manually.  The install assumes you have Python 3.10+ installed.
 
 ```shell
 git clone https://github.com/VikParuchuri/pdftext.git
 cd pdftext
-poetry install
+python -m venv .venv
+source .venv/bin/activate  # On Windows use `.venv\Scripts\activate`
+uv pip install -r requirements-dev.txt
 python benchmark.py # Will download the benchmark pdfs automatically
 ```
 

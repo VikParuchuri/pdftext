@@ -7,7 +7,7 @@ def test_paginated_output(pdf_path, pdf_doc):
     assert len(text) == len(pdf_doc)
     assert "Subspace" in text[0]
 
-def text_plain_text_output(pdf_path):
+def test_plain_text_output(pdf_path):
     text = plain_text_output(pdf_path)
     assert "Subspace" in text
 

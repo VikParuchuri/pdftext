@@ -1,6 +1,6 @@
 import ctypes
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pypdfium2 as pdfium
 import pypdfium2.raw as pdfium_c
@@ -9,7 +9,7 @@ from pdftext.pdf.utils import matrix_intersection_area
 from pdftext.schema import Bbox, Link, Page, PageReference, Pages, Span
 
 
-def _get_dest_position(dest) -> Optional[Tuple[float, float]]:
+def _get_dest_position(dest: Any) -> Optional[Tuple[float, float]]:
     has_x = ctypes.c_int()
     has_y = ctypes.c_int()
     has_zoom = ctypes.c_int()
@@ -26,7 +26,7 @@ def _get_dest_position(dest) -> Optional[Tuple[float, float]]:
     return None
 
 
-def _rect_to_scaled_bbox(rect, page_bbox, page_rotation) -> List[float]:
+def _rect_to_scaled_bbox(rect: List[float], page_bbox: List[float], page_rotation: int) -> List[float]:
     page_width = math.ceil(abs(page_bbox[2] - page_bbox[0]))
     page_height = math.ceil(abs(page_bbox[1] - page_bbox[3]))
 
@@ -44,7 +44,7 @@ def _rect_to_scaled_bbox(rect, page_bbox, page_rotation) -> List[float]:
     return Bbox(bbox).rotate(page_width, page_height, page_rotation).bbox
 
 
-def _xy_to_scaled_pos(x, y, page_bbox, page_rotation, expand_by=1) -> List[float]:
+def _xy_to_scaled_pos(x: float, y: float, page_bbox: List[float], page_rotation: int, expand_by: float = 1.0) -> List[float]:
     return _rect_to_scaled_bbox([x - expand_by, y - expand_by, x + expand_by, y + expand_by], page_bbox, page_rotation)[:2]
 
 
@@ -61,13 +61,6 @@ def get_links(page_idx: int, pdf: pdfium.PdfDocument) -> List[Link]:
 
     annot_count = pdfium_c.FPDFPage_GetAnnotCount(page)
     for i in range(annot_count):
-        link: Link = {
-            'page': page_idx,
-            'bbox': None,
-            'dest_page': None,
-            'dest_pos': None,
-            'url': None,
-        }
         annot = pdfium_c.FPDFPage_GetAnnot(page, i)
         if pdfium_c.FPDFAnnot_GetSubtype(annot) != pdfium_c.FPDF_ANNOT_LINK:
             continue
@@ -77,10 +70,18 @@ def get_links(page_idx: int, pdf: pdfium.PdfDocument) -> List[Link]:
         if not success:
             continue
 
-        link['bbox'] = _rect_to_scaled_bbox(
+        link_bbox = _rect_to_scaled_bbox(
             [fs_rect.left, fs_rect.top, fs_rect.right, fs_rect.bottom],
             page_bbox, page_rotation
         )
+
+        link: Link = {
+            'page': page_idx,
+            'bbox': link_bbox,
+            'dest_page': None,
+            'dest_pos': None,
+            'url': None,
+        }
 
         link_obj = pdfium_c.FPDFAnnot_GetLink(annot)
 
@@ -122,7 +123,7 @@ def get_links(page_idx: int, pdf: pdfium.PdfDocument) -> List[Link]:
     return urls
 
 
-def merge_links(page: Page, pdf: pdfium.PdfDocument, refs: PageReference):
+def merge_links(page: Page, pdf: pdfium.PdfDocument, refs: PageReference) -> None:
     """
     Merges links with spans. Some spans can also have multiple links associated with them.
     We break up the spans and reconstruct them taking the links into account.
@@ -176,12 +177,12 @@ def merge_links(page: Page, pdf: pdfium.PdfDocument, refs: PageReference):
             line['spans'] = spans
 
 
-def _reconstruct_spans(orig_span: dict, links: List[Link]) -> List[Span]:
+def _reconstruct_spans(orig_span: Span, links: List[Link]) -> List[Span]:
     """
     Reconstructs the spans by breaking them up into smaller spans based on the links.
     """
     spans: List[Span] = []
-    span: Span = None
+    span: Optional[Span] = None
     link_bboxes = [Bbox(link['bbox']) for link in links]
 
     for char in orig_span['chars']:
@@ -195,21 +196,23 @@ def _reconstruct_spans(orig_span: dict, links: List[Link]) -> List[Span]:
             if area > 0:
                 intersections.append((area, links[i]))
 
-        current_url = ''
+        current_url: Optional[str] = None
         if intersections:
             intersections.sort(key=lambda x: x[0], reverse=True)
             current_url = intersections[0][1]['url']
 
-        if not span or current_url != span['url']:
+        if not span or (current_url or '') != span['url']:
             span = {
                 "bbox": char_bbox,
                 "text": char["char"],
-                "rotation": char["rotation"],
+                "rotation": int(char["rotation"]),
                 "font": char["font"],
                 "char_start_idx": char["char_idx"],
                 "char_end_idx": char["char_idx"],
                 "chars": [char],
-                "url": current_url,
+                "url": current_url or '',
+                "superscript": False,
+                "subscript": False,
             }
             spans.append(span)
         else:
@@ -221,7 +224,7 @@ def _reconstruct_spans(orig_span: dict, links: List[Link]) -> List[Span]:
     return spans
 
 
-def add_links_and_refs(pages: Pages, pdf_doc: pdfium.PdfDocument):
+def add_links_and_refs(pages: Pages, pdf_doc: pdfium.PdfDocument) -> None:
     refs = PageReference()
 
     for page in pages:

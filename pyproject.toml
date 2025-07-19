@@ -1,35 +1,60 @@
-[tool.poetry]
+[project]
 name = "pdftext"
 version = "0.6.3"
 description = "Extract structured text from pdfs quickly"
-authors = ["Vik Paruchuri <vik.paruchuri@gmail.com>"]
-license = "Apache-2.0"
+authors = [
+    {name = "Vik Paruchuri", email = "vik.paruchuri@gmail.com"}
+]
+license = {text = "Apache-2.0"}
 readme = "README.md"
-repository = "https://github.com/VikParuchuri/pdftext"
+requires-python = ">=3.10"
 keywords = ["pdf", "text", "extraction"]
-packages = [
-    {include = "pdftext"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "click>=8.1.8",
+    "pypdfium2==4.30.0",
+    "pydantic>=2.7.1,<3.0.0",
+    "pydantic-settings>=2.2.1,<3.0.0",
+    "numpy>=2.2.4",
+    "pillow>=10.3.0,<11.0.0",
+    "pytest>=8.3.5",
+    "mypy>=1.15.0",
+    "aiofiles>=24.1.0",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-pypdfium2 = "=4.30.0"
-pydantic = "^2.7.1"
-pydantic-settings = "^2.2.1"
+[project.urls]
+Repository = "https://github.com/VikParuchuri/pdftext"
 
-click = "^8.1.8"
-[tool.poetry.group.dev.dependencies]
-pymupdf = "^1.24.2"
-datasets = "^2.19.0"
-pdfplumber = "^0.11.0"
-pillow = "^10.3.0"
-rapidfuzz = "^3.8.1"
-tabulate = "^0.9.0"
-
-pytest = "^8.3.4"
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.scripts]
+[project.scripts]
 pdftext = "pdftext.scripts.extract_text:extract_text_cli"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["pdftext", "pdftext.scripts", "pdftext.pdf"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+]
+
+[tool.mypy]
+# Default mypy settings can go here if needed in the future
+
+[[tool.mypy.overrides]]
+module = "pdftext.tables"
+ignore_errors = true
+
+[project.optional-dependencies]
+dev = ["aiofiles"]
