@@ -18,6 +18,7 @@ pydantic = "^2.7.1"
 pydantic-settings = "^2.2.1"
 
 click = "^8.1.8"
+numpy = "2.2.3"
 [tool.poetry.group.dev.dependencies]
 pymupdf = "^1.24.2"
 datasets = "^2.19.0"
