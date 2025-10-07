@@ -42,3 +42,10 @@ def test_line_joining(pdf_path2):
     text = plain_text_output(pdf_path2, page_range=pages).lower()
     assert "the axis media control viewer toolbar" in text
     assert "axismediacontrolviewertoolbar" not in text
+
+
+def test_parsing_non_unicode_chars(pdf_with_non_unicode_chars):
+    text = plain_text_output(pdf_with_non_unicode_chars).lower()
+    assert "日" in text
+    assert "付" in text
+

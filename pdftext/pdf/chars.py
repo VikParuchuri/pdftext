@@ -7,6 +7,9 @@ from pdftext.pdf.utils import get_fontname
 from pdftext.schema import Bbox, Char, Chars, Spans, Span
 
 
+MAX_UNICODE_INT = 1114111  # 0x10ffff
+
+
 def get_chars(textpage: pdfium.PdfTextPage, page_bbox: list[float], page_rotation: int, quote_loosebox=True) -> Chars:
     chars: Chars = []
 
@@ -15,7 +18,7 @@ def get_chars(textpage: pdfium.PdfTextPage, page_bbox: list[float], page_rotatio
     page_height = math.ceil(abs(y_end - y_start))
 
     for i in range(textpage.count_chars()):
-        text = chr(pdfium_c.FPDFText_GetUnicode(textpage, i))
+        text = utf8_int_to_string(pdfium_c.FPDFText_GetUnicode(textpage, i))
 
         rotation = pdfium_c.FPDFText_GetCharAngle(textpage, i)
         loosebox = (rotation == 0) and (text != "'" or quote_loosebox)
@@ -117,3 +120,35 @@ def deduplicate_chars(chars: Chars) -> Chars:
             deduped.append(word)
 
     return [char for word in deduped for char in word['chars']]
+
+
+def utf8_int_to_string(utf8_int: int) -> str:
+    """Decode UTF-8 integer to string.
+`
+    PDFium's `FPDFText_GetUnicode` returns unsigned 32-bit integer. Integers ≤ 1114111 are valid
+    Unicode codepoint and can be converted with python in-built `chr` function.
+    Larger integers are UTF-8 bytes packed into integers and must be handled separately.
+
+    Parameters
+    ----------
+    utf8_int
+        Unsgined 32-bit ingeger value from FPDFText_GetUnicode that may be either a valid Unicode
+        codepoint, or UTF-8 bytes packed as an integer.
+
+    Returns
+    -------
+    The decoded character or string.
+
+    Examples
+    --------
+    >>> utf8_int_to_string(65)  # Valid Unicode
+    'A'
+    >>> utf8_int_to_string(15112101)  # UTF-8 bytes for '日'
+    '日'
+    """
+    if utf8_int <= MAX_UNICODE_INT:
+        return chr(utf8_int)
+    # Compute byte length using 8-bit ceiling
+    byte_length = (utf8_int.bit_length() + 7) // 8
+    bytes_obj = utf8_int.to_bytes(byte_length, "big")
+    return bytes_obj.decode("utf-8")
