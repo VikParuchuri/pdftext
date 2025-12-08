@@ -116,7 +116,7 @@ def get_spans(chars: Chars, superscript_height_threshold: float = 0.8, line_dist
         if all([
             char["bbox"][1] < (span["bbox"][1] - span["bbox"].height * line_distance_threshold), # char top is above span
             char["bbox"][3] < (span["bbox"].height * superscript_height_threshold) + span["bbox"][1], # char bottom is not full line height
-            char["bbox"][0] > span["bbox"][2], # char is to the right of the span
+            char["bbox"][2] > span["bbox"][2], # char is to the right of the span
         ]):
             span_break()
             continue
