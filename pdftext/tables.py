@@ -59,8 +59,10 @@ def is_same_span(bbox, curr_box, img_size, space_thresh, rotation):
 def table_cell_text(tables: List[List[int]], page: Page, img_size: list, table_thresh=.8, space_thresh=.01) -> Tables:
     # Note: table is a list of 4 ints representing the bounding box of the table.  This is against the image dims - this can be different from the page dims.
     # We rescale the characters below to account for this.
-    assert all(len(table) == 4 for table in tables), "Tables must be a list of 4 ints representing the bounding box of the table"
-    assert len(img_size) == 2, "img_size must be a list of 2 ints representing the image dimensions width, height"
+    if not all(len(table) == 4 for table in tables):
+        raise ValueError("Tables must be a list of 4 ints representing the bounding box of the table")
+    if len(img_size) != 2 or not all(dim > 0 for dim in img_size):
+        raise ValueError("img_size must be a list of 2 positive ints representing the image dimensions width, height")
 
     table_texts = []
     space_thresh = max(space_thresh, get_dynamic_gap_thresh(page, img_size, default_thresh=space_thresh))

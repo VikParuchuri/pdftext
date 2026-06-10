@@ -3,6 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, TypedDict, Union
 
+import pypdfium2 as pdfium
+
+
+class PdfPasswordError(pdfium.PdfiumError):
+    """Raised when a PDF is encrypted and the password is missing or wrong."""
+    pass
+
 
 class Bbox:
     def __init__(self, bbox: List[float], ensure_nonzero_area=False):
