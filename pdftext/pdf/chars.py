@@ -16,7 +16,9 @@ def get_chars(textpage: pdfium.PdfTextPage, page_bbox: list[float], page_rotatio
     page_height = math.ceil(abs(y_end - y_start))
     rotated = page_rotation != 0
 
-    # Hoist FFI lookups and reuse ctypes objects across the per-char loop
+    # Hoist FFI lookups and reuse ctypes objects across the per-char loop;
+    # pass the raw handle to skip pypdfium2's per-call auto-cast
+    textpage_raw = textpage.raw
     get_unicode = pdfium_c.FPDFText_GetUnicode
     get_char_angle = pdfium_c.FPDFText_GetCharAngle
     get_loose_charbox = pdfium_c.FPDFText_GetLooseCharBox
@@ -31,16 +33,16 @@ def get_chars(textpage: pdfium.PdfTextPage, page_bbox: list[float], page_rotatio
     font_cache = {}
 
     for i in range(textpage.count_chars()):
-        text = chr(get_unicode(textpage, i))
+        text = chr(get_unicode(textpage_raw, i))
 
-        rotation = get_char_angle(textpage, i)
+        rotation = get_char_angle(textpage_raw, i)
         loosebox = (rotation == 0) and (text != "'" or quote_loosebox)
 
         if loosebox:
-            ok = get_loose_charbox(textpage, i, loose_rect)
+            ok = get_loose_charbox(textpage_raw, i, loose_rect)
             cx_start, cy_start, cx_end, cy_end = loose_rect.left, loose_rect.bottom, loose_rect.right, loose_rect.top
         else:
-            ok = get_tight_charbox(textpage, i, tight_l, tight_r, tight_b, tight_t)  # yes, lrbt!
+            ok = get_tight_charbox(textpage_raw, i, tight_l, tight_r, tight_b, tight_t)  # yes, lrbt!
             cx_start, cy_start, cx_end, cy_end = tight_l.value, tight_b.value, tight_r.value, tight_t.value
         if not ok:
             raise pdfium.PdfiumError("Failed to get charbox.")
@@ -58,9 +60,9 @@ def get_chars(textpage: pdfium.PdfTextPage, page_bbox: list[float], page_rotatio
         if rotated:
             bbox = bbox.rotate(page_width, page_height, page_rotation)
 
-        fontname, fontflag = get_fontname(textpage, i, font_buffer, font_flags)
-        fontsize = get_fontsize(textpage, i)
-        fontweight = get_fontweight(textpage, i)
+        fontname, fontflag = get_fontname(textpage_raw, i, font_buffer, font_flags)
+        fontsize = get_fontsize(textpage_raw, i)
+        fontweight = get_fontweight(textpage_raw, i)
 
         font_key = (fontname, fontflag, fontsize, fontweight)
         font = font_cache.get(font_key)
