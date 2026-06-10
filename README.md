@@ -104,7 +104,19 @@ text = table_output(PDF_PATH, table_inputs, page_range=[1,2,3])
 
 ```
 
+Encrypted PDFs can be opened by passing `password=` to any of the functions above (or `--password` on the CLI).
+
 If you want more customization, check out the `pdftext.extraction._get_pages` function for a starting point to dig deeper.  pdftext is a pretty thin wrapper around [pypdfium2](https://pypdfium2.readthedocs.io/en/stable/), so you might want to look at the documentation for that as well.
+
+# Concurrency
+
+pdfium is **not thread-safe** — do not call pdftext from multiple threads at once, even on different files; extractions will fail or corrupt each other.  For parallelism, use the built-in `workers=` option (process-based) or your own process pool.
+
+Notes on `workers=`:
+
+- Parallel extraction only kicks in when each worker would get at least 10 pages (configurable via the `PDFTEXT_WORKER_PAGE_THRESHOLD` env var); smaller documents run serially regardless of `workers`.
+- On macOS and Windows (spawn start method), scripts that call pdftext with `workers=` must be wrapped in an `if __name__ == "__main__":` guard, per the standard `multiprocessing` rules.
+- File-like inputs can't be sent to workers; they run serially.  Pass a path for parallel extraction.
 
 # Benchmarks
 

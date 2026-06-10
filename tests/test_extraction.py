@@ -129,3 +129,50 @@ def test_flatten_pdf_repeated(pdf_path):
     for _ in range(3):
         pages = dictionary_output(pdf_path, page_range=[0], flatten_pdf=True)
         assert pages
+
+
+def test_refs_present_with_disable_links(pdf_path):
+    pages: Pages = dictionary_output(pdf_path, page_range=[0], disable_links=True)
+    assert pages[0]["refs"] == []
+
+
+def test_rotated_page_bbox_not_inverted(rotated_pdf_path):
+    pages: Pages = dictionary_output(rotated_pdf_path, page_range=[0])
+    bbox = pages[0]["bbox"]
+    assert bbox[0] <= bbox[2] and bbox[1] <= bbox[3], f"inverted page bbox {bbox}"
+    assert round(bbox[2] - bbox[0]) == pages[0]["width"]
+    assert round(bbox[3] - bbox[1]) == pages[0]["height"]
+
+
+def test_surrogate_unicode_sanitized(surrogate_pdf_path):
+    import json
+
+    pages: Pages = dictionary_output(surrogate_pdf_path, keep_chars=True)
+    json.dumps(pages, ensure_ascii=False).encode("utf-8")  # must not raise
+    chars = [
+        c["char"]
+        for b in pages[0]["blocks"]
+        for l in b["lines"]
+        for s in l["spans"]
+        for c in s["chars"]
+    ]
+    assert "�" in chars and "B" in chars
+
+
+def test_perpendicular_text_separate_lines(tmp_path):
+    import fitz
+
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((72, 400), "horizontal body text")
+    page.insert_text((60, 400), "vertical label", rotate=90)
+    path = tmp_path / "perp.pdf"
+    doc.save(str(path))
+    doc.close()
+
+    pages: Pages = dictionary_output(str(path))
+    for block in pages[0]["blocks"]:
+        for line in block["lines"]:
+            texts = {span["text"].strip() for span in line["spans"] if span["text"].strip()}
+            assert not ({"horizontal body text", "vertical label"} <= texts), \
+                "perpendicular text merged into one line"

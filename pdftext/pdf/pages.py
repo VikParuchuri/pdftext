@@ -204,9 +204,16 @@ def get_lines(spans: Spans) -> Lines:
             line_break()
             continue
 
-        if span["rotation"] != line["rotation"] and abs(span["rotation"] - line["rotation"]) >= 45:
-            line_break()
-            continue
+        # rotations are radians from FPDFText_GetCharAngle; compare circularly.
+        # Only break on roughly perpendicular text: pdfium reports a 180-degree
+        # flip for ordinary text rendered with negative-scale matrices, which
+        # still belongs to the same visual line
+        if span["rotation"] != line["rotation"]:
+            rotation_diff = abs(span["rotation"] - line["rotation"]) % (2 * math.pi)
+            rotation_diff = min(rotation_diff, 2 * math.pi - rotation_diff)
+            if math.radians(45) <= rotation_diff <= math.radians(135):
+                line_break()
+                continue
 
         # sometimes pdfium doesn't inject a linebreak, so we check the span positions
         if span["bbox"].y_start > line["bbox"].y_end:

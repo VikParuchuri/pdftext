@@ -5,7 +5,7 @@ from typing import List
 import click
 import pypdfium2 as pdfium
 
-from pdftext.extraction import plain_text_output, dictionary_output
+from pdftext.extraction import _load_pdf, plain_text_output, dictionary_output
 
 def parse_range_str(range_str: str) -> List[int]:
     range_lst = range_str.split(",")
@@ -47,7 +47,7 @@ def extract_text_cli(
     pages = None
     if kwargs["page_range"] is not None:
         pages = parse_range_str(kwargs["page_range"])
-        pdf_doc = pdfium.PdfDocument(pdf_path, password=kwargs["password"])
+        pdf_doc = _load_pdf(pdf_path, False, password=kwargs["password"])
         try:
             doc_len = len(pdf_doc)
         finally:

@@ -33,7 +33,12 @@ def get_chars(textpage: pdfium.PdfTextPage, page_bbox: list[float], page_rotatio
     font_cache = {}
 
     for i in range(textpage.count_chars()):
-        text = chr(get_unicode(textpage_raw, i))
+        code = get_unicode(textpage_raw, i)
+        if 0xD800 <= code <= 0xDFFF:
+            # Lone surrogates (from broken ToUnicode CMaps) can't be encoded
+            # to UTF-8 and would crash JSON/file output downstream
+            code = 0xFFFD
+        text = chr(code)
 
         rotation = get_char_angle(textpage_raw, i)
         loosebox = (rotation == 0) and (text != "'" or quote_loosebox)

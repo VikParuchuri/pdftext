@@ -118,7 +118,7 @@ class Bbox:
         x_min, y_min, x_max, y_max = self.bbox
 
         if rotation == 0:
-            return Bbox(self.bbox)
+            return Bbox(list(self.bbox))
         elif rotation == 90:
             new_x_min = page_height - y_max
             new_y_min = x_min
@@ -135,13 +135,14 @@ class Bbox:
             new_x_max = y_max
             new_y_max = page_width - x_min
 
-        # Ensure that x_min < x_max and y_min < y_max
-        rotated_bbox = (
+        # Ensure that x_min < x_max and y_min < y_max; must stay a list so
+        # merge_inplace can mutate it
+        rotated_bbox = [
             min(new_x_min, new_x_max),
             min(new_y_min, new_y_max),
             max(new_x_min, new_x_max),
             max(new_y_min, new_y_max)
-        )
+        ]
 
         return Bbox(rotated_bbox)
 

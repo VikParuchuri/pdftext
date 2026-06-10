@@ -4,6 +4,7 @@ from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
 from functools import partial
 from itertools import repeat
+from pathlib import PurePath
 from typing import List
 
 import pypdfium2 as pdfium
@@ -54,7 +55,8 @@ def _get_page_range(page_range, flatten_pdf=False, quote_loosebox=True, need_cha
 def worker_shutdown(pdf_doc):
     try:
         pdf_doc.close()
-    except pdfium.PdfiumError:
+    except Exception:
+        # atexit context: module teardown can raise odd types; stay quiet
         pass
 
 
@@ -85,6 +87,9 @@ def _get_pages(pdf_path, page_range=None, flatten_pdf=False, quote_loosebox=True
 
         if workers is not None:
             workers = min(workers, len(page_range) // settings.WORKER_PAGE_THRESHOLD)  # It's inefficient to have too many workers, since we batch in inference
+            if not isinstance(pdf_path, (str, PurePath, bytes)):
+                # File-like inputs can't be pickled into worker initargs
+                workers = None
 
         if workers is None or workers <= 1:
             return get_pages(pdf_doc, page_range, flatten_pdf, quote_loosebox)
@@ -95,6 +100,8 @@ def _get_pages(pdf_path, page_range=None, flatten_pdf=False, quote_loosebox=True
 
     pages_per_worker = math.ceil(len(page_range) / workers)
     page_range_chunks = [page_range[i * pages_per_worker:(i + 1) * pages_per_worker] for i in range(workers)]
+    page_range_chunks = [chunk for chunk in page_range_chunks if chunk]
+    workers = len(page_range_chunks)
 
     with ProcessPoolExecutor(max_workers=workers, initializer=worker_init, initargs=(pdf_path, flatten_pdf, password)) as executor:
         try:
@@ -109,13 +116,13 @@ def _get_pages(pdf_path, page_range=None, flatten_pdf=False, quote_loosebox=True
     return ordered_pages
 
 
-def plain_text_output(pdf_path, sort=False, hyphens=False, page_range=None, flatten_pdf=False, workers=None, password=None) -> str:
-    text = paginated_plain_text_output(pdf_path, sort=sort, hyphens=hyphens, page_range=page_range, workers=workers, flatten_pdf=flatten_pdf, password=password)
+def plain_text_output(pdf_path, sort=False, hyphens=False, page_range=None, flatten_pdf=False, quote_loosebox=True, workers=None, password=None) -> str:
+    text = paginated_plain_text_output(pdf_path, sort=sort, hyphens=hyphens, page_range=page_range, workers=workers, flatten_pdf=flatten_pdf, quote_loosebox=quote_loosebox, password=password)
     return "\n".join(text)
 
 
-def paginated_plain_text_output(pdf_path, sort=False, hyphens=False, page_range=None, flatten_pdf=False, workers=None, password=None) -> List[str]:
-    pages: Pages = _get_pages(pdf_path, page_range, workers=workers, flatten_pdf=flatten_pdf, password=password, need_chars=False)
+def paginated_plain_text_output(pdf_path, sort=False, hyphens=False, page_range=None, flatten_pdf=False, quote_loosebox=True, workers=None, password=None) -> List[str]:
+    pages: Pages = _get_pages(pdf_path, page_range, workers=workers, flatten_pdf=flatten_pdf, quote_loosebox=quote_loosebox, password=password, need_chars=False)
     text = []
     for page in pages:
         text.append(merge_text(page, sort=sort, hyphens=hyphens).strip())
@@ -154,6 +161,10 @@ def dictionary_output(
             add_links_and_refs(pages, pdf)
         finally:
             pdf.close()
+    else:
+        # Keep the Page schema consistent regardless of link extraction
+        for page in pages:
+            page["refs"] = []
 
     for page in pages:
         page_width, page_height = page["width"], page["height"]
@@ -175,7 +186,8 @@ def dictionary_output(
 
         if page["rotation"] == 90 or page["rotation"] == 270:
             page["width"], page["height"] = page["height"], page["width"]
-            page["bbox"] = [page["bbox"][2], page["bbox"][3], page["bbox"][0], page["bbox"][1]]
+            # Swap axes into display space; keep x_start < x_end, y_start < y_end
+            page["bbox"] = [page["bbox"][1], page["bbox"][0], page["bbox"][3], page["bbox"][2]]
     return pages
 
 
@@ -192,6 +204,14 @@ def table_output(
     # Extract pages if they don't exist
     if not pages:
         pages: Pages = dictionary_output(pdf_path, page_range=page_range, flatten_pdf=flatten_pdf, quote_loosebox=quote_loosebox, workers=workers, keep_chars=True, password=password)
+    else:
+        # Caller-supplied pages must retain char-level data (keep_chars=True)
+        for page in pages:
+            for block in page["blocks"]:
+                for line in block["lines"]:
+                    for span in line["spans"]:
+                        if "chars" not in span:
+                            raise ValueError("table_output requires pages extracted with keep_chars=True")
 
     if len(pages) != len(table_inputs):
         raise ValueError("Number of pages and table inputs must match")
