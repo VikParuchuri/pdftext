@@ -34,8 +34,21 @@ def _load_pdf(pdf, flatten_pdf, password=None):
     return pdf
 
 
-def _get_page_range(page_range, flatten_pdf=False, quote_loosebox=True) -> Pages:
-    return get_pages(pdf_doc, page_range, flatten_pdf, quote_loosebox)
+def _drop_chars(pages: Pages) -> Pages:
+    for page in pages:
+        for block in page["blocks"]:
+            for line in block["lines"]:
+                for span in line["spans"]:
+                    del span["chars"]
+    return pages
+
+
+def _get_page_range(page_range, flatten_pdf=False, quote_loosebox=True, need_chars=True) -> Pages:
+    pages = get_pages(pdf_doc, page_range, flatten_pdf, quote_loosebox)
+    if not need_chars:
+        # Skip pickling char-level data back to the parent process
+        _drop_chars(pages)
+    return pages
 
 
 def worker_shutdown(pdf_doc):
@@ -61,7 +74,7 @@ def _validate_page_range(page_range, doc_len):
         )
 
 
-def _get_pages(pdf_path, page_range=None, flatten_pdf=False, quote_loosebox=True, workers=None, password=None) -> Pages:
+def _get_pages(pdf_path, page_range=None, flatten_pdf=False, quote_loosebox=True, workers=None, password=None, need_chars=True) -> Pages:
     pdf_doc = _load_pdf(pdf_path, flatten_pdf, password=password)
     try:
         doc_len = len(pdf_doc)
@@ -85,7 +98,7 @@ def _get_pages(pdf_path, page_range=None, flatten_pdf=False, quote_loosebox=True
 
     with ProcessPoolExecutor(max_workers=workers, initializer=worker_init, initargs=(pdf_path, flatten_pdf, password)) as executor:
         try:
-            pages = list(executor.map(_get_page_range, page_range_chunks, repeat(flatten_pdf), repeat(quote_loosebox)))
+            pages = list(executor.map(_get_page_range, page_range_chunks, repeat(flatten_pdf), repeat(quote_loosebox), repeat(need_chars)))
         except BrokenProcessPool as e:
             raise RuntimeError(
                 f"A worker process died while extracting {pdf_path}; "
@@ -102,7 +115,7 @@ def plain_text_output(pdf_path, sort=False, hyphens=False, page_range=None, flat
 
 
 def paginated_plain_text_output(pdf_path, sort=False, hyphens=False, page_range=None, flatten_pdf=False, workers=None, password=None) -> List[str]:
-    pages: Pages = _get_pages(pdf_path, page_range, workers=workers, flatten_pdf=flatten_pdf, password=password)
+    pages: Pages = _get_pages(pdf_path, page_range, workers=workers, flatten_pdf=flatten_pdf, password=password, need_chars=False)
     text = []
     for page in pages:
         text.append(merge_text(page, sort=sort, hyphens=hyphens).strip())
@@ -113,7 +126,7 @@ def _process_span(span, page_width, page_height, keep_chars):
     span["bbox"] = span["bbox"].bbox
     span["text"] = handle_hyphens(postprocess_text(span["text"]), keep_hyphens=True)
     if not keep_chars:
-        del span["chars"]
+        span.pop("chars", None)
     else:
         for char in span["chars"]:
             char["bbox"] = char["bbox"].bbox
@@ -130,7 +143,10 @@ def dictionary_output(
         workers=None,
         password=None
 ) -> Pages:
-    pages: Pages = _get_pages(pdf_path, page_range, workers=workers, flatten_pdf=flatten_pdf, quote_loosebox=quote_loosebox, password=password)
+    # Links rebuild spans from char-level data, so chars must survive the
+    # worker round-trip unless the caller disabled links and dropped chars
+    need_chars = keep_chars or not disable_links
+    pages: Pages = _get_pages(pdf_path, page_range, workers=workers, flatten_pdf=flatten_pdf, quote_loosebox=quote_loosebox, password=password, need_chars=need_chars)
 
     if not disable_links:
         pdf = _load_pdf(pdf_path, False, password=password)
