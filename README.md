@@ -8,7 +8,7 @@ Text extraction like [PyMuPDF](https://github.com/pymupdf/PyMuPDF), but without 
 
 # Installation
 
-You'll need python 3.9+ first.  Then run `pip install pdftext`.
+You'll need python 3.10+ first.  Then run `pip install pdftext`.
 
 # Usage
 
@@ -29,6 +29,7 @@ pdftext PDF_PATH --out_path output.txt
 - `--page_range` will specify pages (comma separated) to extract.  Like `0,5-10,12`.
 - `--workers` specifies the number of parallel workers to use
 - `--flatten_pdf` merges form fields into the PDF
+- `--password` password for encrypted PDFs
 
 ## JSON
 
@@ -46,6 +47,7 @@ pdftext PDF_PATH --out_path output.txt --json
 - `--keep_chars` will keep individual characters in the json output
 - `--workers` specifies the number of parallel workers to use
 - `--flatten_pdf` merges form fields into the PDF
+- `--password` password for encrypted PDFs
 
 The output will be a json list, with each item in the list corresponding to a single page in the input pdf (in order).  Each page will include the following keys:
 
@@ -58,7 +60,7 @@ The output will be a json list, with each item in the list corresponding to a si
     - `bbox` - the line bbox, in `[x1, y1, x2, y2]` format
     - `spans` - the individual text spans in the line (text spans have the same font/weight/etc)
       - `text` - the text in the span, encoded in utf-8
-      - `rotation` - how much the span is rotated, in degrees
+      - `rotation` - how much the span is rotated, in radians (from pdfium's character angle)
       - `bbox` - the span bbox, in `[x1, y1, x2, y2]` format
       - `char_start_idx` - the start index of the first span character in the pdf
       - `char_end_idx` - the end index of the last span character in the pdf
@@ -122,15 +124,15 @@ Notes on `workers=`:
 
 I benchmarked extraction speed and accuracy of [pymupdf](https://pymupdf.readthedocs.io/en/latest/), [pdfplumber](https://github.com/jsvine/pdfplumber), and pdftext.  I chose pymupdf because it extracts blocks and lines.  Pdfplumber extracts words and bboxes.  I did not benchmark pypdf, even though it is a great library, because it doesn't provide individual character/line/block and bbox information.
 
-Here are the scores, run on an M1 Macbook, without multiprocessing:
+Here are the scores, run on an Apple Silicon Macbook, without multiprocessing:
 
-| Library    | Time (s per page) | Alignment Score (% accuracy vs pymupdf) |
-|------------|-------------------|-----------------------------------------|
-| pymupdf    | 0.32              | --                                      |
-| pdftext    | 1.36              | 97.78                                   |
-| pdfplumber | 3.16              | 90.36                                   |
+| Library    | Time (s per doc) | Alignment Score (% accuracy vs pymupdf) |
+|------------|------------------|-----------------------------------------|
+| pymupdf    | 0.35             | --                                      |
+| pdftext    | 1.36             | 97.54                                   |
+| pdfplumber | 3.44             | 90.16                                   |
 
-pdftext is approximately 2x slower than using pypdfium2 alone (if you were to extract all the same character information).
+pdftext is approximately 3x slower than using pypdfium2 alone (if you were to extract all the same character information without any grouping into spans/lines/blocks).
 
 There are additional benchmarks for pypdfium2 and other tools [here](https://github.com/py-pdf/benchmarks).
 
@@ -150,7 +152,7 @@ You can run the benchmarks yourself.  To do so, you have to first install pdftex
 git clone https://github.com/VikParuchuri/pdftext.git
 cd pdftext
 poetry install
-python benchmark.py # Will download the benchmark pdfs automatically
+python benchmark/benchmark.py # Will download the benchmark pdfs automatically
 ```
 
 The benchmark script has a few options:
@@ -158,17 +160,17 @@ The benchmark script has a few options:
 - `--max` this controls the maximum number of pdfs to benchmark
 - `--result_path` a folder to save the results.  A file called `results.json` will be created in the folder.
 - `--pdftext_only` skip running pdfplumber, which can be slow.
+- `--pdftext_workers` number of parallel workers for pdftext.
 
 # How it works
 
-PDFText is a very light wrapper around pypdfium2.  It first uses pypdfium2 to extract characters in order, along with font and other information.  Then it uses a simple decision tree algorithm to group characters into lines and blocks.  It does some simple postprocessing to clean up the text.
+PDFText is a very light wrapper around pypdfium2.  It first uses pypdfium2 to extract characters in order, along with font and other information.  Then it uses heuristic rules to group characters into spans, lines, and blocks.  It does some simple postprocessing to clean up the text.
 
 # Credits
 
 This is built on some amazing open source work, including:
 
 - [pypdfium2](https://github.com/pypdfium2-team/pypdfium2)
-- [scikit-learn](https://scikit-learn.org/stable/index.html)
 - [pypdf](https://github.com/py-pdf/benchmarks) for very thorough and fair benchmarks
 
 Thank you to the [pymupdf](https://github.com/pymupdf/PyMuPDF) devs for creating such a great library - I just wish it had a simpler license!

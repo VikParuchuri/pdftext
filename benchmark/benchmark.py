@@ -99,7 +99,7 @@ def main():
                 )
 
     print("Benchmark Scores")
-    headers = ["Library", "Time (s per page)", "Alignment Score (% accuracy vs pymupdf)"]
+    headers = ["Library", "Time (s per doc)", "Alignment Score (% accuracy vs pymupdf)"]
     table_times = [round(mean(times[tool]), 2) for tool in times_tools]
     table_alignments = [round(mean(alignments[tool]), 2) for tool in alignment_tools]
     table_alignments.insert(0, "--")
