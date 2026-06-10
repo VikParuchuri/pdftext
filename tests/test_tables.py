@@ -1,4 +1,10 @@
+import pytest
+
 from pdftext.extraction import table_output
+
+def test_table_input_mismatch(pdf_path):
+    with pytest.raises(ValueError):
+        table_output(pdf_path, [], page_range=[5])
 
 def test_table_extraction(pdf_path, pdf_doc):
     _table_extraction(pdf_path, pdf_doc)
