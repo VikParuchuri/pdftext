@@ -88,6 +88,8 @@ def get_spans(chars: Chars, superscript_height_threshold: float = 0.8, line_dist
             "char_end_idx": char["char_idx"],
             "chars": [char],
             "url": '',
+            "superscript": False,
+            "subscript": False,
         })
 
     for char in chars:
@@ -235,7 +237,7 @@ def get_blocks(lines: Lines) -> Blocks:
             block_merge()
             continue
 
-        blocks.append({"lines": [line], "bbox": line["bbox"]})
+        blocks.append({"lines": [line], "bbox": line["bbox"], "rotation": line["rotation"]})
 
     # we do one last pass of merging overlapping blocks in the PDF reading order
     merged_blocks = []
@@ -250,7 +252,8 @@ def get_blocks(lines: Lines) -> Blocks:
         if prev_block["bbox"].intersection_pct(curr_block["bbox"]) > 0:
             merged_blocks[-1] = {
                 "lines": prev_block["lines"] + curr_block["lines"],
-                "bbox": prev_block["bbox"].merge(curr_block["bbox"])
+                "bbox": prev_block["bbox"].merge(curr_block["bbox"]),
+                "rotation": prev_block["rotation"]
             }
         else:
             merged_blocks.append(curr_block)

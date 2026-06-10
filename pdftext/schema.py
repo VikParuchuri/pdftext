@@ -82,7 +82,7 @@ class Bbox:
         return self.overlap_x(other) * self.overlap_y(other)
 
     def intersection_pct(self, other: Bbox):
-        if self.area == 0:
+        if self.area <= 0:
             return 0
 
         intersection = self.intersection_area(other)
@@ -123,8 +123,8 @@ class Bbox:
         return Bbox(rotated_bbox)
 
     def rescale(self, img_size: List[int], page: Page) -> Bbox:
-        w_scale = img_size[0] / page["width"]
-        h_scale = img_size[1] / page["height"]
+        w_scale = img_size[0] / page["width"] if page["width"] else 1
+        h_scale = img_size[1] / page["height"] if page["height"] else 1
         new_bbox = [
             self.bbox[0] * w_scale,
             self.bbox[1] * h_scale,

@@ -224,6 +224,8 @@ def _reconstruct_spans(orig_span: dict, links: List[Link]) -> List[Span]:
                 "char_end_idx": char["char_idx"],
                 "chars": [char],
                 "url": current_url,
+                "superscript": orig_span.get("superscript", False),
+                "subscript": orig_span.get("subscript", False),
             }
             spans.append(span)
         else:

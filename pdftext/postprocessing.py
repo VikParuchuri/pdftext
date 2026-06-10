@@ -36,7 +36,7 @@ def handle_hyphens(text: str, keep_hyphens=False) -> str:
     else:
         new_text = ""
         found_hyphen = False
-        for i in range(len(text) - 1):
+        for i in range(len(text)):
             if text[i] == HYPHEN_CHAR:
                 found_hyphen = True
             elif found_hyphen:
