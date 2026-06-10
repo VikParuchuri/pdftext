@@ -17,13 +17,16 @@ def flatten(page, flag=pdfium_c.FLAT_NORMALDISPLAY):
         raise pdfium.PdfiumError("Failed to flatten annotations / form fields.")
 
 
-def get_fontname(textpage, i):
+def get_fontname(textpage, i, font_name=None, font_flags=None):
+    # font_name / font_flags can be passed in to reuse buffers across calls
     font_name_str = ""
     flags = 0
     try:
-        buffer_size = 256
-        font_name = create_string_buffer(buffer_size)
-        font_flags = c_int()
+        if font_name is None:
+            font_name = create_string_buffer(256)
+        if font_flags is None:
+            font_flags = c_int()
+        buffer_size = len(font_name)
 
         length = pdfium_c.FPDFText_GetFontInfo(textpage, i, font_name, buffer_size, byref(font_flags))
         if length > buffer_size:

@@ -100,8 +100,11 @@ def get_spans(chars: Chars, superscript_height_threshold: float = 0.8, line_dist
             span_break()
             continue
 
-        # we break on any change in font info
-        if any(char['font'][k] != span['font'][k] for k in ['name', 'flags', 'size', 'weight']):
+        # we break on any change in font info; fonts are interned per page,
+        # so an identity check is the fast path
+        char_font = char['font']
+        span_font = span['font']
+        if char_font is not span_font and any(char_font[k] != span_font[k] for k in ['name', 'flags', 'size', 'weight']):
             span_break()
             continue
 
