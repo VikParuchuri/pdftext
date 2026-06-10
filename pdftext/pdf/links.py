@@ -199,20 +199,18 @@ def _reconstruct_spans(orig_span: dict, links: List[Link]) -> List[Span]:
     link_bboxes = [Bbox(link['bbox']) for link in links]
 
     for char in orig_span['chars']:
-        char_bbox = Bbox(char['bbox'].bbox)
+        char_bbox = char['bbox']
+        # Zero-area chars are inflated for the intersection test only
+        isect_bbox = char_bbox if char_bbox.area > 0 else Bbox(char_bbox.bbox, ensure_nonzero_area=True)
         intersections: List[Tuple[float, Link]] = []
         for i, link_bbox in enumerate(link_bboxes):
-            if char_bbox.area > 0:
-                area = link_bbox.intersection_area(char_bbox)
-            else:
-                area = link_bbox.intersection_area(Bbox(char['bbox'].bbox, ensure_nonzero_area=True))
+            area = link_bbox.intersection_area(isect_bbox)
             if area > 0:
                 intersections.append((area, links[i]))
 
         current_url = ''
         if intersections:
-            intersections.sort(key=lambda x: x[0], reverse=True)
-            current_url = intersections[0][1]['url']
+            current_url = max(intersections, key=lambda x: x[0])[1]['url']
 
         if not span or current_url != span['url']:
             span = {

@@ -19,34 +19,85 @@ def is_math_symbol(char):
     category = unicodedata.category(char)
     return category == 'Sm'
 
+def _top2(values):
+    # Returns (max1, max1_idx, max2) so that max-excluding-index can be answered in O(1)
+    max1 = max2 = float("-inf")
+    max1_idx = -1
+    for idx, v in enumerate(values):
+        if v > max1:
+            max2 = max1
+            max1 = v
+            max1_idx = idx
+        elif v > max2:
+            max2 = v
+    return max1, max1_idx, max2
+
+
+def _bottom2(values):
+    min1 = min2 = float("inf")
+    min1_idx = -1
+    for idx, v in enumerate(values):
+        if v < min1:
+            min2 = min1
+            min1 = v
+            min1_idx = idx
+        elif v < min2:
+            min2 = v
+    return min1, min1_idx, min2
+
+
 def assign_scripts(lines: Lines, height_threshold: float = 0.8, line_distance_threshold: float = 0.1):
     for line in lines:
-        prev_span = None
-        if len(line["spans"]) < 2:
+        spans = line["spans"]
+        if len(spans) < 2:
             continue
 
+        line_bbox = line["bbox"].bbox
+        line_height = line_bbox[3] - line_bbox[1]
         # Skip vertical lines
-        if line["bbox"].height > line["bbox"].width:
+        if line_height > line_bbox[2] - line_bbox[0]:
             continue
 
-        for i, span in enumerate(line["spans"]):
-            is_first = i == 0 or not prev_span["text"].strip()
-            is_last = i == len(line["spans"]) - 1 or not line["spans"][i + 1]["text"].strip()
-            span_height = span["bbox"].height
-            span_top = span["bbox"].y_start
-            span_bottom = span["bbox"].y_end
+        # Precompute per-span geometry once; the loop below would otherwise
+        # recompute these via Bbox properties O(n^2) times per line
+        heights = []
+        y_starts = []
+        y_ends = []
+        v_above = []
+        v_below = []
+        for s in spans:
+            bbox = s["bbox"].bbox
+            height = bbox[3] - bbox[1]
+            heights.append(height)
+            y_starts.append(bbox[1])
+            y_ends.append(bbox[3])
+            v_above.append(bbox[1] - height * line_distance_threshold)
+            v_below.append(bbox[3] + height * line_distance_threshold)
 
-            line_fullheight = span_height / max(1, line["bbox"].height) <= height_threshold
-            next_fullheight = is_last or span_height / max(1, line["spans"][i + 1]["bbox"].height) <= height_threshold
-            prev_fullheight = is_first or span_height / max(1, prev_span["bbox"].height) <= height_threshold
+        above_max1, above_max1_idx, above_max2 = _top2(v_above)
+        below_min1, below_min1_idx, below_min2 = _bottom2(v_below)
+        max_line_height = max(1, line_height)
+        last_idx = len(spans) - 1
 
-            above = any([span_top < (s["bbox"].y_start - s["bbox"].height * line_distance_threshold) for j, s in enumerate(line["spans"]) if j != i])
-            prev_above = is_first or span_top < prev_span["bbox"].y_start
-            next_above = is_last or span_top < line["spans"][i + 1]["bbox"].y_start
+        for i, span in enumerate(spans):
+            is_first = i == 0 or not spans[i - 1]["text"].strip()
+            is_last = i == last_idx or not spans[i + 1]["text"].strip()
+            span_height = heights[i]
+            span_top = y_starts[i]
+            span_bottom = y_ends[i]
 
-            below = any([span_bottom > (s["bbox"].y_end + s["bbox"].height * line_distance_threshold) for j, s in enumerate(line["spans"]) if j != i])
-            prev_below = is_first or span_bottom > prev_span["bbox"].y_end
-            next_below = is_last or span_bottom > line["spans"][i + 1]["bbox"].y_end
+            line_fullheight = span_height / max_line_height <= height_threshold
+            next_fullheight = is_last or span_height / max(1, heights[i + 1]) <= height_threshold
+            prev_fullheight = is_first or span_height / max(1, heights[i - 1]) <= height_threshold
+
+            # any(span_top < v_above[j] for j != i) == span_top < max(v_above excluding i)
+            above = span_top < (above_max2 if i == above_max1_idx else above_max1)
+            prev_above = is_first or span_top < y_starts[i - 1]
+            next_above = is_last or span_top < y_starts[i + 1]
+
+            below = span_bottom > (below_min2 if i == below_min1_idx else below_min1)
+            prev_below = is_first or span_bottom > y_ends[i - 1]
+            next_below = is_last or span_bottom > y_ends[i + 1]
 
             span_text = span["text"].strip()
             span_text_okay = all([
@@ -70,8 +121,6 @@ def assign_scripts(lines: Lines, height_threshold: float = 0.8, line_distance_th
                 span_text_okay
             ]):
                 span["subscript"] = True
-
-            prev_span = span
 
 
 def get_spans(chars: Chars, superscript_height_threshold: float = 0.8, line_distance_threshold: float = 0.1) -> Spans:
