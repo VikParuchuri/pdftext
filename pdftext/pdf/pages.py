@@ -7,9 +7,9 @@ import unicodedata
 
 import pypdfium2 as pdfium
 
-from pdftext.pdf.chars import get_chars, deduplicate_chars
+from pdftext.pdf.chars import PageChars, get_chars, deduplicate_chars
 from pdftext.pdf.utils import flatten
-from pdftext.schema import Blocks, Chars, Line, Lines, Pages, Span, Spans
+from pdftext.schema import Bbox, Blocks, Line, Lines, Pages, Spans
 
 
 def is_math_symbol(char):
@@ -123,62 +123,86 @@ def assign_scripts(lines: Lines, height_threshold: float = 0.8, line_distance_th
                 span["subscript"] = True
 
 
-def get_spans(chars: Chars, superscript_height_threshold: float = 0.8, line_distance_threshold: float = 0.1) -> Spans:
-    spans: Spans = []
-    span: Span = None
+def get_spans(chars: PageChars, superscript_height_threshold: float = 0.8, line_distance_threshold: float = 0.1, need_chars: bool = True) -> Spans:
+    n = len(chars)
+    if n == 0:
+        return []
 
-    def span_break():
-        spans.append({
-            "bbox": char["bbox"].copy(),
-            "text": char["char"],
-            "rotation": char["rotation"],
-            "font": char["font"],
-            "char_start_idx": char["char_idx"],
-            "char_end_idx": char["char_idx"],
-            "chars": [char],
+    text = chars.text
+    fonts = chars.fonts
+    # Plain lists are much faster than per-element numpy access in the loop,
+    # and tolist() converts to exact-value python floats/ints
+    x0 = chars.boxes[:, 0].tolist()
+    y0 = chars.boxes[:, 1].tolist()
+    x1 = chars.boxes[:, 2].tolist()
+    y1 = chars.boxes[:, 3].tolist()
+    rotations = chars.rotations.tolist()
+    font_ids = chars.font_ids.tolist()
+    char_indices = chars.char_indices.tolist()
+    codes = chars.codes.tolist()
+
+    # First pass: find span boundaries, accumulating the span bbox as floats
+    span_bounds = []
+    start = 0
+    bx0, by0, bx1, by1 = x0[0], y0[0], x1[0], y1[0]
+    for j in range(1, n):
+        prev_code = codes[j - 1]
+        height = by1 - by0
+        if (
+            # we break on any change in font info (interned per page) or rotation
+            font_ids[j] != font_ids[start]
+            or rotations[j] != rotations[start]
+            # we break on hyphenation or newline
+            or prev_code == 2 or prev_code == 10
+            # character is likely a superscript: top above the span, bottom not
+            # full span height, and to the right of the span
+            or (
+                y0[j] < by0 - height * line_distance_threshold
+                and y1[j] < height * superscript_height_threshold + by0
+                and x0[j] > bx1
+            )
+        ):
+            span_bounds.append((start, j, [bx0, by0, bx1, by1]))
+            start = j
+            bx0, by0, bx1, by1 = x0[j], y0[j], x1[j], y1[j]
+        else:
+            if x0[j] < bx0:
+                bx0 = x0[j]
+            if y0[j] < by0:
+                by0 = y0[j]
+            if x1[j] > bx1:
+                bx1 = x1[j]
+            if y1[j] > by1:
+                by1 = y1[j]
+    span_bounds.append((start, n, [bx0, by0, bx1, by1]))
+
+    # Second pass: materialize span dicts (char dicts only when the caller
+    # actually consumes them - links, tables, keep_chars output)
+    spans: Spans = []
+    for start, end, bbox in span_bounds:
+        span = {
+            "bbox": Bbox(bbox),
+            "text": text[start:end],
+            "font": fonts[font_ids[start]],
+            "rotation": rotations[start],
+            "char_start_idx": char_indices[start],
+            "char_end_idx": char_indices[end - 1],
             "url": '',
             "superscript": False,
             "subscript": False,
-        })
-
-    for char in chars:
-        if spans:
-            span = spans[-1]
-
-        if not span:
-            span_break()
-            continue
-
-        # we break on any change in font info; fonts are interned per page,
-        # so an identity check is the fast path
-        char_font = char['font']
-        span_font = span['font']
-        if char_font is not span_font and any(char_font[k] != span_font[k] for k in ['name', 'flags', 'size', 'weight']):
-            span_break()
-            continue
-
-        if char['rotation'] != span['rotation']:
-            span_break()
-            continue
-
-        # we break on hyphenation or newline
-        if span['text'].endswith("\x02") or span['text'].endswith("\n"):
-            span_break()
-            continue
-
-        # Character is likely a superscript
-        if all([
-            char["bbox"][1] < (span["bbox"][1] - span["bbox"].height * line_distance_threshold), # char top is above span
-            char["bbox"][3] < (span["bbox"].height * superscript_height_threshold) + span["bbox"][1], # char bottom is not full line height
-            char["bbox"][0] > span["bbox"][2], # char is to the right of the span
-        ]):
-            span_break()
-            continue
-
-        span['text'] += char['char']
-        span['char_end_idx'] = char['char_idx']
-        span['bbox'].merge_inplace(char['bbox'])
-        span['chars'].append(char)
+        }
+        if need_chars:
+            span["chars"] = [
+                {
+                    "bbox": Bbox([x0[j], y0[j], x1[j], y1[j]]),
+                    "char": text[j],
+                    "rotation": rotations[j],
+                    "font": fonts[font_ids[j]],
+                    "char_idx": char_indices[j],
+                }
+                for j in range(start, end)
+            ]
+        spans.append(span)
 
     return spans
 
@@ -327,6 +351,7 @@ def get_pages(
     quote_loosebox: bool =True,
     superscript_height_threshold: float = 0.7,
     line_distance_threshold: float = 0.1,
+    need_chars: bool = True,
 ) -> Pages:
     pages: Pages = []
 
@@ -352,7 +377,7 @@ def get_pages(
                 pass
 
             chars = deduplicate_chars(get_chars(textpage, page_bbox, page_rotation, quote_loosebox))
-            spans = get_spans(chars, superscript_height_threshold=superscript_height_threshold, line_distance_threshold=line_distance_threshold)
+            spans = get_spans(chars, superscript_height_threshold=superscript_height_threshold, line_distance_threshold=line_distance_threshold, need_chars=need_chars)
             lines = get_lines(spans)
             assign_scripts(lines, height_threshold=superscript_height_threshold, line_distance_threshold=line_distance_threshold)
             blocks = get_blocks(lines)

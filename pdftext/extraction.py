@@ -35,21 +35,9 @@ def _load_pdf(pdf, flatten_pdf, password=None):
     return pdf
 
 
-def _drop_chars(pages: Pages) -> Pages:
-    for page in pages:
-        for block in page["blocks"]:
-            for line in block["lines"]:
-                for span in line["spans"]:
-                    del span["chars"]
-    return pages
-
-
 def _get_page_range(page_range, flatten_pdf=False, quote_loosebox=True, need_chars=True) -> Pages:
-    pages = get_pages(pdf_doc, page_range, flatten_pdf, quote_loosebox)
-    if not need_chars:
-        # Skip pickling char-level data back to the parent process
-        _drop_chars(pages)
-    return pages
+    # need_chars=False also avoids pickling char-level data back to the parent
+    return get_pages(pdf_doc, page_range, flatten_pdf, quote_loosebox, need_chars=need_chars)
 
 
 def worker_shutdown(pdf_doc):
@@ -92,7 +80,7 @@ def _get_pages(pdf_path, page_range=None, flatten_pdf=False, quote_loosebox=True
                 workers = None
 
         if workers is None or workers <= 1:
-            return get_pages(pdf_doc, page_range, flatten_pdf, quote_loosebox)
+            return get_pages(pdf_doc, page_range, flatten_pdf, quote_loosebox, need_chars=need_chars)
     finally:
         pdf_doc.close()
 
