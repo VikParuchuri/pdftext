@@ -92,7 +92,7 @@ def deduplicate_chars(chars: Chars) -> Chars:
 
     def word_break():
         words.append({
-            "bbox": char["bbox"],
+            "bbox": char["bbox"].copy(),
             "text": char["char"],
             "rotation": char["rotation"],
             "font": char["font"],
@@ -129,7 +129,7 @@ def deduplicate_chars(chars: Chars) -> Chars:
 
         word['text'] += char['char']
         word['char_end_idx'] = char['char_idx']
-        word['bbox'] = word['bbox'].merge(char['bbox'])
+        word['bbox'].merge_inplace(char['bbox'])
         word['chars'].append(char)
 
     # deduplicate words - use tuple keys instead of strings

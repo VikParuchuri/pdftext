@@ -216,7 +216,7 @@ def _reconstruct_spans(orig_span: dict, links: List[Link]) -> List[Span]:
 
         if not span or current_url != span['url']:
             span = {
-                "bbox": char_bbox,
+                "bbox": char_bbox.copy(),
                 "text": char["char"],
                 "rotation": char["rotation"],
                 "font": char["font"],
@@ -231,7 +231,7 @@ def _reconstruct_spans(orig_span: dict, links: List[Link]) -> List[Span]:
         else:
             span['text'] += char['char']
             span['char_end_idx'] = char['char_idx']
-            span['bbox'] = span['bbox'].merge(char_bbox)
+            span['bbox'].merge_inplace(char_bbox)
             span['chars'].append(char)
 
     return spans

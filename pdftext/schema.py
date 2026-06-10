@@ -12,6 +12,8 @@ class PdfPasswordError(pdfium.PdfiumError):
 
 
 class Bbox:
+    __slots__ = ("bbox", "ensure_nonzero_area")
+
     def __init__(self, bbox: List[float], ensure_nonzero_area=False):
         if ensure_nonzero_area:
             bbox = list(bbox)
@@ -25,6 +27,13 @@ class Bbox:
 
     def __repr__(self):
         return f"Bbox({self.bbox})"
+
+    def __reduce__(self):
+        # ensure_nonzero_area is already applied at construction; don't re-apply on unpickle
+        return (Bbox, (self.bbox,))
+
+    def copy(self) -> Bbox:
+        return Bbox(list(self.bbox))
 
     @property
     def height(self):
@@ -71,6 +80,20 @@ class Bbox:
             max(self_bbox[2], other_bbox[2]),
             max(self_bbox[3], other_bbox[3])
         ])
+
+    def merge_inplace(self, other: Bbox) -> Bbox:
+        # Mutates this bbox; only safe on accumulator bboxes that aren't shared
+        self_bbox = self.bbox
+        other_bbox = other.bbox
+        if other_bbox[0] < self_bbox[0]:
+            self_bbox[0] = other_bbox[0]
+        if other_bbox[1] < self_bbox[1]:
+            self_bbox[1] = other_bbox[1]
+        if other_bbox[2] > self_bbox[2]:
+            self_bbox[2] = other_bbox[2]
+        if other_bbox[3] > self_bbox[3]:
+            self_bbox[3] = other_bbox[3]
+        return self
 
     def overlap_x(self, other: Bbox):
         return max(0, min(self.bbox[2], other.bbox[2]) - max(self.bbox[0], other.bbox[0]))

@@ -80,7 +80,7 @@ def get_spans(chars: Chars, superscript_height_threshold: float = 0.8, line_dist
 
     def span_break():
         spans.append({
-            "bbox": char["bbox"],
+            "bbox": char["bbox"].copy(),
             "text": char["char"],
             "rotation": char["rotation"],
             "font": char["font"],
@@ -128,7 +128,7 @@ def get_spans(chars: Chars, superscript_height_threshold: float = 0.8, line_dist
 
         span['text'] += char['char']
         span['char_end_idx'] = char['char_idx']
-        span['bbox'] = span['bbox'].merge(char['bbox'])
+        span['bbox'].merge_inplace(char['bbox'])
         span['chars'].append(char)
 
     return spans
@@ -139,7 +139,7 @@ def get_lines(spans: Spans) -> Lines:
     line: Line = None
 
     def line_break():
-        lines.append({"spans": [span], "bbox": span["bbox"], "rotation": span["rotation"]})
+        lines.append({"spans": [span], "bbox": span["bbox"].copy(), "rotation": span["rotation"]})
 
     for span in spans:
         if lines:
@@ -165,7 +165,7 @@ def get_lines(spans: Spans) -> Lines:
             continue
 
         line["spans"].append(span)
-        line["bbox"] = line["bbox"].merge(span["bbox"])
+        line["bbox"].merge_inplace(span["bbox"])
 
     return lines
 
@@ -195,13 +195,13 @@ def get_blocks(lines: Lines) -> Blocks:
 
     def block_merge():
         block["lines"].append(line)
-        block["bbox"] = block["bbox"].merge(line["bbox"])
+        block["bbox"].merge_inplace(line["bbox"])
 
     blocks: Blocks = []
     for line in lines:
         if not blocks:
             # First block
-            blocks.append({"lines": [line], "bbox": line["bbox"], "rotation": line["rotation"]})
+            blocks.append({"lines": [line], "bbox": line["bbox"].copy(), "rotation": line["rotation"]})
             continue
 
         block = blocks[-1]
@@ -240,7 +240,7 @@ def get_blocks(lines: Lines) -> Blocks:
             block_merge()
             continue
 
-        blocks.append({"lines": [line], "bbox": line["bbox"], "rotation": line["rotation"]})
+        blocks.append({"lines": [line], "bbox": line["bbox"].copy(), "rotation": line["rotation"]})
 
     # we do one last pass of merging overlapping blocks in the PDF reading order
     merged_blocks = []
@@ -255,7 +255,7 @@ def get_blocks(lines: Lines) -> Blocks:
         if prev_block["bbox"].intersection_pct(curr_block["bbox"]) > 0:
             merged_blocks[-1] = {
                 "lines": prev_block["lines"] + curr_block["lines"],
-                "bbox": prev_block["bbox"].merge(curr_block["bbox"]),
+                "bbox": prev_block["bbox"].merge_inplace(curr_block["bbox"]),
                 "rotation": prev_block["rotation"]
             }
         else:
