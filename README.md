@@ -136,11 +136,11 @@ Here are the scores, run on an Apple Silicon Macbook, without multiprocessing:
 
 | Library    | Time (s per doc) | Alignment Score (% accuracy vs pymupdf) |
 |------------|------------------|-----------------------------------------|
-| pymupdf    | 0.35             | --                                      |
-| pdftext    | 1.36             | 97.54                                   |
-| pdfplumber | 3.44             | 90.16                                   |
+| pymupdf    | 0.34             | --                                      |
+| pdftext    | 0.69             | 97.54                                   |
+| pdfplumber | 3.40             | 90.16                                   |
 
-pdftext is approximately 3x slower than using pypdfium2 alone (if you were to extract all the same character information without any grouping into spans/lines/blocks).
+pdftext is approximately 1.5-2x slower than using pypdfium2 alone (if you were to extract all the same character information without any grouping into spans/lines/blocks).
 
 There are additional benchmarks for pypdfium2 and other tools [here](https://github.com/py-pdf/benchmarks).
 
