@@ -270,34 +270,41 @@ def get_pages(
 
     for page_idx in page_range:
         page = pdf.get_page(page_idx)
-        if flatten_pdf:
-            flatten(page)
-            page = pdf.get_page(page_idx)
-
-        textpage = page.get_textpage()
-
-        page_bbox: List[float] = page.get_bbox()
-        page_width = math.ceil(abs(page_bbox[2] - page_bbox[0]))
-        page_height = math.ceil(abs(page_bbox[1] - page_bbox[3]))
-
-        page_rotation = 0
+        textpage = None
         try:
-            page_rotation = page.get_rotation()
-        except:
-            pass
+            if flatten_pdf:
+                flatten(page)
+                page.close()
+                page = pdf.get_page(page_idx)
 
-        chars = deduplicate_chars(get_chars(textpage, page_bbox, page_rotation, quote_loosebox))
-        spans = get_spans(chars, superscript_height_threshold=superscript_height_threshold, line_distance_threshold=line_distance_threshold)
-        lines = get_lines(spans)
-        assign_scripts(lines, height_threshold=superscript_height_threshold, line_distance_threshold=line_distance_threshold)
-        blocks = get_blocks(lines)
+            textpage = page.get_textpage()
 
-        pages.append({
-            "page": page_idx,
-            "bbox": page_bbox,
-            "width": page_width,
-            "height": page_height,
-            "rotation": page_rotation,
-            "blocks": blocks
-        })
+            page_bbox: List[float] = page.get_bbox()
+            page_width = math.ceil(abs(page_bbox[2] - page_bbox[0]))
+            page_height = math.ceil(abs(page_bbox[1] - page_bbox[3]))
+
+            page_rotation = 0
+            try:
+                page_rotation = page.get_rotation()
+            except pdfium.PdfiumError:
+                pass
+
+            chars = deduplicate_chars(get_chars(textpage, page_bbox, page_rotation, quote_loosebox))
+            spans = get_spans(chars, superscript_height_threshold=superscript_height_threshold, line_distance_threshold=line_distance_threshold)
+            lines = get_lines(spans)
+            assign_scripts(lines, height_threshold=superscript_height_threshold, line_distance_threshold=line_distance_threshold)
+            blocks = get_blocks(lines)
+
+            pages.append({
+                "page": page_idx,
+                "bbox": page_bbox,
+                "width": page_width,
+                "height": page_height,
+                "rotation": page_rotation,
+                "blocks": blocks
+            })
+        finally:
+            if textpage is not None:
+                textpage.close()
+            page.close()
     return pages

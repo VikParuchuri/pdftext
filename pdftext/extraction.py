@@ -43,18 +43,19 @@ def worker_init(pdf_path, flatten_pdf):
 
 def _get_pages(pdf_path, page_range=None, flatten_pdf=False, quote_loosebox=True, workers=None) -> Pages:
     pdf_doc = _load_pdf(pdf_path, flatten_pdf)
-    if page_range is None:
-        page_range = range(len(pdf_doc))
+    try:
+        doc_len = len(pdf_doc)
+        if page_range is None:
+            page_range = range(doc_len)
 
-    if workers is not None:
-        workers = min(workers, len(page_range) // settings.WORKER_PAGE_THRESHOLD)  # It's inefficient to have too many workers, since we batch in inference
+        if workers is not None:
+            workers = min(workers, len(page_range) // settings.WORKER_PAGE_THRESHOLD)  # It's inefficient to have too many workers, since we batch in inference
 
-    if workers is None or workers <= 1:
-        pages = get_pages(pdf_doc, page_range, flatten_pdf, quote_loosebox)
+        if workers is None or workers <= 1:
+            return get_pages(pdf_doc, page_range, flatten_pdf, quote_loosebox)
+    finally:
         pdf_doc.close()
-        return pages
 
-    pdf_doc.close()
     page_range = list(page_range)
 
     pages_per_worker = math.ceil(len(page_range) / workers)
@@ -104,8 +105,10 @@ def dictionary_output(
 
     if not disable_links:
         pdf = _load_pdf(pdf_path, False)
-        add_links_and_refs(pages, pdf)
-        pdf.close()
+        try:
+            add_links_and_refs(pages, pdf)
+        finally:
+            pdf.close()
 
     for page in pages:
         page_width, page_height = page["width"], page["height"]
