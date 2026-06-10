@@ -159,6 +159,40 @@ def test_surrogate_unicode_sanitized(surrogate_pdf_path):
     assert "�" in chars and "B" in chars
 
 
+def test_cjk_text(tmp_path):
+    import fitz
+
+    samples = {
+        "chinese": ("china-s", "人工智能正在改变世界这是测试"),
+        "japanese": ("japan", "人工知能は世界を変えていますこれはテスト"),
+        "korea": ("korea", "인공지능이세상을바꾸고있습니다"),
+    }
+    for name, (font, text) in samples.items():
+        doc = fitz.open()
+        page = doc.new_page()
+        page.insert_text((72, 100), text, fontname=font)
+        path = tmp_path / f"{name}.pdf"
+        doc.save(str(path))
+        doc.close()
+        extracted = plain_text_output(str(path))
+        assert text in extracted.replace(" ", ""), f"{name}: {extracted!r}"
+
+
+def test_cyrillic_greek_vietnamese(tmp_path):
+    import fitz
+
+    text = "Тест Δοκιμή thử nghiệm"
+    doc = fitz.open()
+    page = doc.new_page()
+    rc = page.insert_htmlbox(fitz.Rect(50, 50, 550, 200), f"<p>{text}</p>")
+    path = tmp_path / "multi.pdf"
+    doc.save(str(path))
+    doc.close()
+    extracted = plain_text_output(str(path))
+    for word in ("Тест", "Δοκιμή", "nghiệm"):
+        assert word in extracted, f"missing {word!r} in {extracted!r}"
+
+
 def test_perpendicular_text_separate_lines(tmp_path):
     import fitz
 

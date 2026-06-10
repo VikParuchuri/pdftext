@@ -110,6 +110,14 @@ Encrypted PDFs can be opened by passing `password=` to any of the functions abov
 
 If you want more customization, check out the `pdftext.extraction._get_pages` function for a starting point to dig deeper.  pdftext is a pretty thin wrapper around [pypdfium2](https://pypdfium2.readthedocs.io/en/stable/), so you might want to look at the documentation for that as well.
 
+# Language support
+
+pdftext extracts whatever character ordering and Unicode mapping the PDF (via pdfium) provides:
+
+- CJK, Cyrillic, Greek, Vietnamese, and other left-to-right scripts extract correctly.
+- Right-to-left scripts (Arabic, Hebrew) are returned in the order pdfium reports them — usually visual order, i.e. reversed relative to logical reading order.  pdfium does not perform bidi reordering (PyMuPDF does, which is the main extraction-quality difference between the two for RTL documents).
+- Complex-script fidelity (e.g. Indic conjuncts) and emoji depend entirely on the PDF's ToUnicode map; a broken map produces the same garbled output in any extractor.
+
 # Concurrency
 
 pdfium is **not thread-safe** — do not call pdftext from multiple threads at once, even on different files; extractions will fail or corrupt each other.  For parallelism, use the built-in `workers=` option (process-based) or your own process pool.
