@@ -1,4 +1,39 @@
+import pytest
+
 from pdftext.extraction import table_output
+
+def test_table_input_mismatch(pdf_path):
+    with pytest.raises(ValueError):
+        table_output(pdf_path, [], page_range=[5])
+
+def test_table_pages_without_chars(pdf_path):
+    from pdftext.extraction import dictionary_output
+    pages = dictionary_output(pdf_path, page_range=[5], keep_chars=False)
+    with pytest.raises(ValueError, match="keep_chars"):
+        table_output(pdf_path, [{"tables": [[0, 0, 100, 100]], "img_size": [612, 792]}], pages=pages)
+
+def test_table_cells_consistent_across_rotations(tmp_path):
+    import fitz
+    from pdftext.extraction import dictionary_output
+
+    counts = {}
+    for rot in (0, 90, 180, 270):
+        doc = fitz.open()
+        page = doc.new_page()
+        for i in range(8):
+            page.insert_text((72, 100 + i * 22), f"alpha beta    gamma delta   row{i} end")
+        page.set_rotation(rot)
+        path = tmp_path / f"table_rot{rot}.pdf"
+        doc.save(str(path))
+        doc.close()
+
+        pages = dictionary_output(str(path), keep_chars=True)
+        w, h = pages[0]["width"], pages[0]["height"]
+        tables = table_output(str(path), [{"tables": [[0, 0, w, h]], "img_size": [w, h]}], pages=pages)
+        cells = [c["text"] for c in tables[0][0]]
+        assert not any("\r" in c or "\n" in c for c in cells), f"control chars in cells at rot={rot}"
+        counts[rot] = len(cells)
+    assert len(set(counts.values())) == 1, f"cell counts differ across rotations: {counts}"
 
 def test_table_extraction(pdf_path, pdf_doc):
     _table_extraction(pdf_path, pdf_doc)

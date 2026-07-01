@@ -10,17 +10,19 @@ def get_dynamic_gap_thresh(page: Page, img_size: list, default_thresh=.01, min_c
     for block in page["blocks"]:
         for line in block["lines"]:
             for span in line["spans"]:
+                # Measure the gap along the text advance axis for each
+                # rotation, matching the axes is_same_span compares
                 for i in range(1, len(span["chars"])):
                     char1 = span["chars"][i - 1]
                     char2 = span["chars"][i]
                     if page["rotation"] == 90:
-                        space_dists.append((char2["bbox"][0] - char1["bbox"][2]) / img_size[0])
-                    elif page["rotation"] == 180:
                         space_dists.append((char2["bbox"][1] - char1["bbox"][3]) / img_size[1])
-                    elif page["rotation"] == 270:
+                    elif page["rotation"] == 180:
                         space_dists.append((char1["bbox"][0] - char2["bbox"][2]) / img_size[0])
-                    else:
+                    elif page["rotation"] == 270:
                         space_dists.append((char1["bbox"][1] - char2["bbox"][3]) / img_size[1])
+                    else:
+                        space_dists.append((char2["bbox"][0] - char1["bbox"][2]) / img_size[0])
     cell_gap_thresh = np.percentile(space_dists, 80) if len(space_dists) > min_chars else default_thresh
     return cell_gap_thresh
 
@@ -37,16 +39,17 @@ def is_same_span(bbox, curr_box, img_size, space_thresh, rotation):
             normalized_diff(bbox[0], curr_box[0], 0, mult=5)
         ])
     elif rotation == 180:
+        # text advances in -x; the signed gap is curr_x_start - new_x_end
         return all([
-            normalized_diff(bbox[2], curr_box[0], 0, use_abs=False),
+            normalized_diff(curr_box[0], bbox[2], 0, use_abs=False),
             normalized_diff(bbox[1], curr_box[1], 1),
-            normalized_diff(bbox[2], curr_box[0], 1, mult=5)
+            normalized_diff(curr_box[0], bbox[2], 0, mult=5)
         ])
     elif rotation == 270:
         return all([
             normalized_diff(bbox[0], curr_box[0], 0, use_abs=False),
             normalized_diff(bbox[3], curr_box[1], 1),
-            normalized_diff(bbox[0], curr_box[0], 1, mult=5)
+            normalized_diff(bbox[0], curr_box[0], 0, mult=5)
         ])
     else:  # 0 or default case
         return all([
@@ -59,8 +62,10 @@ def is_same_span(bbox, curr_box, img_size, space_thresh, rotation):
 def table_cell_text(tables: List[List[int]], page: Page, img_size: list, table_thresh=.8, space_thresh=.01) -> Tables:
     # Note: table is a list of 4 ints representing the bounding box of the table.  This is against the image dims - this can be different from the page dims.
     # We rescale the characters below to account for this.
-    assert all(len(table) == 4 for table in tables), "Tables must be a list of 4 ints representing the bounding box of the table"
-    assert len(img_size) == 2, "img_size must be a list of 2 ints representing the image dimensions width, height"
+    if not all(len(table) == 4 for table in tables):
+        raise ValueError("Tables must be a list of 4 ints representing the bounding box of the table")
+    if len(img_size) != 2 or not all(dim > 0 for dim in img_size):
+        raise ValueError("img_size must be a list of 2 positive ints representing the image dimensions width, height")
 
     table_texts = []
     space_thresh = max(space_thresh, get_dynamic_gap_thresh(page, img_size, default_thresh=space_thresh))
@@ -78,6 +83,16 @@ def table_cell_text(tables: List[List[int]], page: Page, img_size: list, table_t
                 curr_box = None
                 for span in line["spans"]:
                     for char in span["chars"]:
+                        # pdfium-injected line breaks end the current cell
+                        # fragment on every rotation (on unrotated pages they
+                        # already fail is_same_span; rotated charboxes can
+                        # spuriously pass it and embed \r\n in cell text)
+                        if char["char"] in ("\r", "\n"):
+                            if curr_span and curr_span.strip():
+                                table_text.append({"text": curr_span, "bbox": curr_box})
+                            curr_span = None
+                            curr_box = None
+                            continue
                         bbox = Bbox(bbox=char["bbox"]).rescale(img_size, page).bbox
                         same_span = False
                         if curr_span:

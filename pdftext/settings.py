@@ -1,9 +1,11 @@
 import os.path
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="PDFTEXT_")
+
     # Inference
     WORKER_PAGE_THRESHOLD: int = 10  # Min number of pages per worker in parallel
 

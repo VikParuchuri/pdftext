@@ -18,13 +18,29 @@ REPLACEMENTS = {
     "\r\n": "\n",
 }
 
+# Single translation table folding special chars and ligatures into one pass.
+# \r\n must be replaced before applying this (a pure table would yield \n\n).
+_TRANSLATION_TABLE = str.maketrans({
+    **{c: " " for c in SPACES},
+    **{c: "\n" for c in LINE_BREAKS},
+    **{c: "\t" for c in TABS},
+    **LIGATURES,
+})
+
+
+def _keep_char(char: str) -> bool:
+    return unicodedata.category(char)[0] != "C" or char == HYPHEN_CHAR or char in WHITESPACE_CHARS
+
+# Control chars are deleted; precompute the ASCII deletions for the fast path
+_ASCII_CONTROL_DELETE = {ord(c): None for c in map(chr, range(128)) if not _keep_char(c)}
+_KEEP_CHAR_CACHE = {}
+
 
 def postprocess_text(text: str) -> str:
     for old, new in REPLACEMENTS.items():
         text = text.replace(old, new)
-    text = replace_special_chars(text)
+    text = text.translate(_TRANSLATION_TABLE)
     text = replace_control_chars(text)
-    text = replace_ligatures(text)
     return text
 
 
@@ -36,7 +52,7 @@ def handle_hyphens(text: str, keep_hyphens=False) -> str:
     else:
         new_text = ""
         found_hyphen = False
-        for i in range(len(text) - 1):
+        for i in range(len(text)):
             if text[i] == HYPHEN_CHAR:
                 found_hyphen = True
             elif found_hyphen:
@@ -64,7 +80,18 @@ def replace_special_chars(text: str) -> str:
 
 
 def replace_control_chars(text: str) -> str:
-    return "".join(char for char in text if (unicodedata.category(char)[0] != "C" or char == HYPHEN_CHAR or char in WHITESPACE_CHARS))
+    if text.isascii():
+        return text.translate(_ASCII_CONTROL_DELETE)
+    cache = _KEEP_CHAR_CACHE
+    out = []
+    for char in text:
+        keep = cache.get(char)
+        if keep is None:
+            keep = _keep_char(char)
+            cache[char] = keep
+        if keep:
+            out.append(char)
+    return "".join(out)
 
 
 def replace_ligatures(text: str) -> str:

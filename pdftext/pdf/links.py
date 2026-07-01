@@ -52,74 +52,88 @@ def get_links(page_idx: int, pdf: pdfium.PdfDocument) -> List[Link]:
     urls = []
 
     page = pdf.get_page(page_idx)
-    page_bbox: List[float] = page.get_bbox()
-    page_rotation = 0
     try:
-        page_rotation = page.get_rotation()
-    except:
-        pass
+        page_bbox: List[float] = page.get_bbox()
+        page_rotation = 0
+        try:
+            page_rotation = page.get_rotation()
+        except pdfium.PdfiumError:
+            pass
 
-    annot_count = pdfium_c.FPDFPage_GetAnnotCount(page)
-    for i in range(annot_count):
-        link: Link = {
-            'page': page_idx,
-            'bbox': None,
-            'dest_page': None,
-            'dest_pos': None,
-            'url': None,
-        }
-        annot = pdfium_c.FPDFPage_GetAnnot(page, i)
-        if pdfium_c.FPDFAnnot_GetSubtype(annot) != pdfium_c.FPDF_ANNOT_LINK:
-            continue
-
-        fs_rect = pdfium_c.FS_RECTF()
-        success = pdfium_c.FPDFAnnot_GetRect(annot, fs_rect)
-        if not success:
-            continue
-
-        link['bbox'] = _rect_to_scaled_bbox(
-            [fs_rect.left, fs_rect.top, fs_rect.right, fs_rect.bottom],
-            page_bbox, page_rotation
-        )
-
-        link_obj = pdfium_c.FPDFAnnot_GetLink(annot)
-
-        dest = pdfium_c.FPDFLink_GetDest(pdf, link_obj)
-        if dest:
-            tgt_page = pdfium_c.FPDFDest_GetDestPageIndex(pdf, dest)
-            link['dest_page'] = tgt_page
-            dest_position = _get_dest_position(dest)
-            if dest_position:
-                link['dest_pos'] = _xy_to_scaled_pos(*dest_position, page_bbox, page_rotation)
-
-        else:
-            action = pdfium_c.FPDFLink_GetAction(link_obj)
-            a_type = pdfium_c.FPDFAction_GetType(action)
-
-            if a_type == pdfium_c.PDFACTION_UNSUPPORTED:
+        annot_count = pdfium_c.FPDFPage_GetAnnotCount(page)
+        for i in range(annot_count):
+            annot = pdfium_c.FPDFPage_GetAnnot(page, i)
+            if not annot:
                 continue
-
-            elif a_type == pdfium_c.PDFACTION_GOTO:
-                # Goto a page
-                dest = pdfium_c.FPDFAction_GetDest(pdf, action)
-                if dest:
-                    tgt_page = pdfium_c.FPDFDest_GetDestPageIndex(pdf, dest)
-                    link['dest_page'] = tgt_page
-                    dest_position = _get_dest_position(dest)
-                    if dest_position:
-                        link['dest_pos'] = _xy_to_scaled_pos(*dest_position, page_bbox, page_rotation)
-
-            elif a_type == pdfium_c.PDFACTION_URI:
-                # External link
-                needed_len = pdfium_c.FPDFAction_GetURIPath(pdf, action, None, 0)
-                if needed_len > 0:
-                    buf = ctypes.create_string_buffer(needed_len)
-                    pdfium_c.FPDFAction_GetURIPath(pdf, action, buf, needed_len)
-                    uri = buf.raw[:needed_len].decode('utf-8', errors='replace').rstrip('\x00')
-                    link["url"] = uri
-
-        urls.append(link)
+            try:
+                link = _get_annot_link(annot, page_idx, pdf, page_bbox, page_rotation)
+            finally:
+                pdfium_c.FPDFPage_CloseAnnot(annot)
+            if link is not None:
+                urls.append(link)
+    finally:
+        page.close()
     return urls
+
+
+def _get_annot_link(annot, page_idx: int, pdf: pdfium.PdfDocument, page_bbox: List[float], page_rotation: int) -> Optional[Link]:
+    link: Link = {
+        'page': page_idx,
+        'bbox': None,
+        'dest_page': None,
+        'dest_pos': None,
+        'url': None,
+    }
+    if pdfium_c.FPDFAnnot_GetSubtype(annot) != pdfium_c.FPDF_ANNOT_LINK:
+        return None
+
+    fs_rect = pdfium_c.FS_RECTF()
+    success = pdfium_c.FPDFAnnot_GetRect(annot, fs_rect)
+    if not success:
+        return None
+
+    link['bbox'] = _rect_to_scaled_bbox(
+        [fs_rect.left, fs_rect.top, fs_rect.right, fs_rect.bottom],
+        page_bbox, page_rotation
+    )
+
+    link_obj = pdfium_c.FPDFAnnot_GetLink(annot)
+
+    dest = pdfium_c.FPDFLink_GetDest(pdf, link_obj)
+    if dest:
+        tgt_page = pdfium_c.FPDFDest_GetDestPageIndex(pdf, dest)
+        link['dest_page'] = tgt_page
+        dest_position = _get_dest_position(dest)
+        if dest_position:
+            link['dest_pos'] = _xy_to_scaled_pos(*dest_position, page_bbox, page_rotation)
+
+    else:
+        action = pdfium_c.FPDFLink_GetAction(link_obj)
+        a_type = pdfium_c.FPDFAction_GetType(action)
+
+        if a_type == pdfium_c.PDFACTION_UNSUPPORTED:
+            return None
+
+        elif a_type == pdfium_c.PDFACTION_GOTO:
+            # Goto a page
+            dest = pdfium_c.FPDFAction_GetDest(pdf, action)
+            if dest:
+                tgt_page = pdfium_c.FPDFDest_GetDestPageIndex(pdf, dest)
+                link['dest_page'] = tgt_page
+                dest_position = _get_dest_position(dest)
+                if dest_position:
+                    link['dest_pos'] = _xy_to_scaled_pos(*dest_position, page_bbox, page_rotation)
+
+        elif a_type == pdfium_c.PDFACTION_URI:
+            # External link
+            needed_len = pdfium_c.FPDFAction_GetURIPath(pdf, action, None, 0)
+            if needed_len > 0:
+                buf = ctypes.create_string_buffer(needed_len)
+                pdfium_c.FPDFAction_GetURIPath(pdf, action, buf, needed_len)
+                uri = buf.raw[:needed_len].decode('utf-8', errors='replace').rstrip('\x00')
+                link["url"] = uri
+
+    return link
 
 
 def merge_links(page: Page, pdf: pdfium.PdfDocument, refs: PageReference):
@@ -185,24 +199,22 @@ def _reconstruct_spans(orig_span: dict, links: List[Link]) -> List[Span]:
     link_bboxes = [Bbox(link['bbox']) for link in links]
 
     for char in orig_span['chars']:
-        char_bbox = Bbox(char['bbox'].bbox)
+        char_bbox = char['bbox']
+        # Zero-area chars are inflated for the intersection test only
+        isect_bbox = char_bbox if char_bbox.area > 0 else Bbox(char_bbox.bbox, ensure_nonzero_area=True)
         intersections: List[Tuple[float, Link]] = []
         for i, link_bbox in enumerate(link_bboxes):
-            if char_bbox.area > 0:
-                area = link_bbox.intersection_area(char_bbox)
-            else:
-                area = link_bbox.intersection_area(Bbox(char['bbox'].bbox, ensure_nonzero_area=True))
+            area = link_bbox.intersection_area(isect_bbox)
             if area > 0:
                 intersections.append((area, links[i]))
 
         current_url = ''
         if intersections:
-            intersections.sort(key=lambda x: x[0], reverse=True)
-            current_url = intersections[0][1]['url']
+            current_url = max(intersections, key=lambda x: x[0])[1]['url']
 
         if not span or current_url != span['url']:
             span = {
-                "bbox": char_bbox,
+                "bbox": char_bbox.copy(),
                 "text": char["char"],
                 "rotation": char["rotation"],
                 "font": char["font"],
@@ -210,12 +222,14 @@ def _reconstruct_spans(orig_span: dict, links: List[Link]) -> List[Span]:
                 "char_end_idx": char["char_idx"],
                 "chars": [char],
                 "url": current_url,
+                "superscript": orig_span.get("superscript", False),
+                "subscript": orig_span.get("subscript", False),
             }
             spans.append(span)
         else:
             span['text'] += char['char']
             span['char_end_idx'] = char['char_idx']
-            span['bbox'] = span['bbox'].merge(char_bbox)
+            span['bbox'].merge_inplace(char_bbox)
             span['chars'].append(char)
 
     return spans

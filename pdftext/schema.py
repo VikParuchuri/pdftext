@@ -3,8 +3,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, TypedDict, Union
 
+import pypdfium2 as pdfium
+
+
+class PdfPasswordError(pdfium.PdfiumError):
+    """Raised when a PDF is encrypted and the password is missing or wrong."""
+    pass
+
 
 class Bbox:
+    __slots__ = ("bbox", "ensure_nonzero_area")
+
     def __init__(self, bbox: List[float], ensure_nonzero_area=False):
         if ensure_nonzero_area:
             bbox = list(bbox)
@@ -18,6 +27,13 @@ class Bbox:
 
     def __repr__(self):
         return f"Bbox({self.bbox})"
+
+    def __reduce__(self):
+        # ensure_nonzero_area is already applied at construction; don't re-apply on unpickle
+        return (Bbox, (self.bbox,))
+
+    def copy(self) -> Bbox:
+        return Bbox(list(self.bbox))
 
     @property
     def height(self):
@@ -65,6 +81,20 @@ class Bbox:
             max(self_bbox[3], other_bbox[3])
         ])
 
+    def merge_inplace(self, other: Bbox) -> Bbox:
+        # Mutates this bbox; only safe on accumulator bboxes that aren't shared
+        self_bbox = self.bbox
+        other_bbox = other.bbox
+        if other_bbox[0] < self_bbox[0]:
+            self_bbox[0] = other_bbox[0]
+        if other_bbox[1] < self_bbox[1]:
+            self_bbox[1] = other_bbox[1]
+        if other_bbox[2] > self_bbox[2]:
+            self_bbox[2] = other_bbox[2]
+        if other_bbox[3] > self_bbox[3]:
+            self_bbox[3] = other_bbox[3]
+        return self
+
     def overlap_x(self, other: Bbox):
         return max(0, min(self.bbox[2], other.bbox[2]) - max(self.bbox[0], other.bbox[0]))
 
@@ -75,7 +105,7 @@ class Bbox:
         return self.overlap_x(other) * self.overlap_y(other)
 
     def intersection_pct(self, other: Bbox):
-        if self.area == 0:
+        if self.area <= 0:
             return 0
 
         intersection = self.intersection_area(other)
@@ -88,7 +118,7 @@ class Bbox:
         x_min, y_min, x_max, y_max = self.bbox
 
         if rotation == 0:
-            return Bbox(self.bbox)
+            return Bbox(list(self.bbox))
         elif rotation == 90:
             new_x_min = page_height - y_max
             new_y_min = x_min
@@ -105,19 +135,20 @@ class Bbox:
             new_x_max = y_max
             new_y_max = page_width - x_min
 
-        # Ensure that x_min < x_max and y_min < y_max
-        rotated_bbox = (
+        # Ensure that x_min < x_max and y_min < y_max; must stay a list so
+        # merge_inplace can mutate it
+        rotated_bbox = [
             min(new_x_min, new_x_max),
             min(new_y_min, new_y_max),
             max(new_x_min, new_x_max),
             max(new_y_min, new_y_max)
-        )
+        ]
 
         return Bbox(rotated_bbox)
 
     def rescale(self, img_size: List[int], page: Page) -> Bbox:
-        w_scale = img_size[0] / page["width"]
-        h_scale = img_size[1] / page["height"]
+        w_scale = img_size[0] / page["width"] if page["width"] else 1
+        h_scale = img_size[1] / page["height"] if page["height"] else 1
         new_bbox = [
             self.bbox[0] * w_scale,
             self.bbox[1] * h_scale,
