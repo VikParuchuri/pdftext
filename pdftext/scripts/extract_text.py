@@ -1,4 +1,5 @@
 import json
+import sys
 from pathlib import Path
 from typing import List
 
@@ -80,7 +81,14 @@ def extract_text_cli(
         )
 
     if out_path is None:
-        print(text)
+        # Write UTF-8 bytes directly so non-ASCII text doesn't crash on
+        # consoles with a non-UTF-8 default encoding (e.g. cp1252 on Windows)
+        buffer = getattr(sys.stdout, "buffer", None)
+        if buffer is not None:
+            buffer.write((text + "\n").encode("utf-8"))
+            buffer.flush()
+        else:
+            print(text)
     else:
         with open(out_path, "w+", encoding="utf-8") as f:
             f.write(text)
