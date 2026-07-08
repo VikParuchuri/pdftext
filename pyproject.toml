@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pdftext"
-version = "0.7.0"
+version = "0.7.1"
 description = "Extract structured text from pdfs quickly"
 authors = ["Vik Paruchuri <vik.paruchuri@gmail.com>"]
 license = "Apache-2.0"
@@ -13,7 +13,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.10"
-pypdfium2 = "=5.9.0"
+pypdfium2 = "=5.10.1"
 pydantic = "^2.7.1"
 pydantic-settings = "^2.2.1"
 
