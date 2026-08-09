@@ -210,3 +210,40 @@ def test_perpendicular_text_separate_lines(tmp_path):
             texts = {span["text"].strip() for span in line["spans"] if span["text"].strip()}
             assert not ({"horizontal body text", "vertical label"} <= texts), \
                 "perpendicular text merged into one line"
+
+
+def test_link_spans_whole_anchor(tmp_path):
+    import fitz
+
+    url = "https://example.com/anchor"
+    doc = fitz.open()
+    page = doc.new_page(width=400, height=140)
+    size, baseline, left = 18, 60, 40
+    first, second = "Claude ", "Sonnet"
+    first_width = fitz.get_text_length(first, fontname="helv", fontsize=size)
+    second_width = fitz.get_text_length(second, fontname="hebo", fontsize=size)
+    # One link annotation over two runs that pdftext splits into separate spans
+    page.insert_text((left, baseline), first, fontname="helv", fontsize=size)
+    page.insert_text((left + first_width, baseline), second, fontname="hebo", fontsize=size)
+    page.insert_link({
+        "kind": fitz.LINK_URI,
+        "uri": url,
+        "from": fitz.Rect(left, baseline - size, left + first_width + second_width, baseline + 4),
+    })
+    # An unlinked line right below, so a link bleeding into its neighbour is caught
+    page.insert_text((left, baseline + 40), "unlinked tail", fontname="helv", fontsize=size)
+    path = tmp_path / "multi_span_link.pdf"
+    doc.save(str(path))
+    doc.close()
+
+    pages: Pages = dictionary_output(str(path))
+    spans = [
+        span
+        for page in pages
+        for block in page["blocks"]
+        for line in block["lines"]
+        for span in line["spans"]
+    ]
+    linked = "".join(span["text"] for span in spans if span["url"] == url)
+    assert linked.strip() == "Claude Sonnet"
+    assert all(not span["url"] for span in spans if "unlinked" in span["text"])

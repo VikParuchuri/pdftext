@@ -8,6 +8,10 @@ import pypdfium2.raw as pdfium_c
 from pdftext.pdf.utils import matrix_intersection_area
 from pdftext.schema import Bbox, Link, Page, PageReference, Pages, Span
 
+# Fraction of the smaller of (span area, link area) that has to be covered before a
+# link is attached to a span it is not the best match for.
+LINK_SPAN_COVERAGE_THRESHOLD = 0.5
+
 
 def _get_dest_position(dest) -> Optional[Tuple[float, float]]:
     has_x = ctypes.c_int()
@@ -136,6 +140,29 @@ def _get_annot_link(annot, page_idx: int, pdf: pdfium.PdfDocument, page_bbox: Li
     return link
 
 
+def _bbox_area(bbox: List[float]) -> float:
+    return max(0.0, bbox[2] - bbox[0]) * max(0.0, bbox[3] - bbox[1])
+
+
+def _linked_span_indices(intersection_link, span_bboxes: List[List[float]], link_bbox: List[float], max_intersection: int) -> List[int]:
+    """
+    Returns every span index the link should be attached to: the largest overlap
+    plus any other span the link substantially covers. Normalizing by the smaller
+    of the two areas keeps both a short span fully inside the link and a long span
+    that swallows the whole link, while ignoring the sliver of the neighbouring
+    line a link rect often reaches into.
+    """
+    indices = [max_intersection]
+    link_area = _bbox_area(link_bbox)
+    for span_idx, area in enumerate(intersection_link):
+        if span_idx == max_intersection or area <= 0:
+            continue
+        denom = min(_bbox_area(span_bboxes[span_idx]), link_area)
+        if denom > 0 and area / denom >= LINK_SPAN_COVERAGE_THRESHOLD:
+            indices.append(span_idx)
+    return indices
+
+
 def merge_links(page: Page, pdf: pdfium.PdfDocument, refs: PageReference):
     """
     Merges links with spans. Some spans can also have multiple links associated with them.
@@ -157,8 +184,7 @@ def merge_links(page: Page, pdf: pdfium.PdfDocument, refs: PageReference):
         if intersection_link.sum() == 0:
             continue
 
-        max_intersection = intersection_link.argmax()
-        span = spans[max_intersection]
+        max_intersection = int(intersection_link.argmax())
 
         dest_page = link['dest_page']
         if dest_page is not None:
@@ -174,8 +200,16 @@ def merge_links(page: Page, pdf: pdfium.PdfDocument, refs: PageReference):
             ref = refs.add_ref(dest_page, dest_pos)
             link['url'] = ref.url
 
-        span_link_map.setdefault(max_intersection, [])
-        span_link_map[max_intersection].append(link)
+        # A single link annotation routinely covers more than one span, because a
+        # linked phrase gets split whenever the font changes (bold words, the
+        # zero-width spacers pdfium emits between words, ...). Keying only on the
+        # largest overlap leaves every other part of the anchor without a url, so
+        # also take the spans the link substantially covers. `_reconstruct_spans`
+        # still decides char by char, so a partially covered span is split rather
+        # than tagged wholesale.
+        for span_idx in _linked_span_indices(intersection_link, span_bboxes, link['bbox'], max_intersection):
+            span_link_map.setdefault(span_idx, [])
+            span_link_map[span_idx].append(link)
 
     span_idx = 0
     for block in page["blocks"]:
